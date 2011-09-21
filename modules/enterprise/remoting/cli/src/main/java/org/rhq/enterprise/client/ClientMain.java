@@ -94,6 +94,8 @@ public class ClientMain {
 
     private Recorder recorder = new NoOpRecorder();
 
+    private String language = "JavaScript";
+    
     // Entrance to main.
     public static void main(String[] args) throws Exception {
 
@@ -404,8 +406,9 @@ public class ClientMain {
             new LongOpt("command", LongOpt.REQUIRED_ARGUMENT, null, 'c'),
             new LongOpt("file", LongOpt.NO_ARGUMENT, null, 'f'),
             new LongOpt("version", LongOpt.NO_ARGUMENT, null, 'v'),
-            new LongOpt("args-style", LongOpt.REQUIRED_ARGUMENT, null, -2) };
-
+            new LongOpt("args-style", LongOpt.REQUIRED_ARGUMENT, null, -2),
+            new LongOpt("language", LongOpt.OPTIONAL_ARGUMENT, null, 'l') };
+            
         Getopt getopt = new Getopt("Cli", args, sopts, lopts, false);
         int code;
 
@@ -480,6 +483,10 @@ public class ClientMain {
                 case 'v': {
                     String versionString = Version.getProductNameAndVersionBuildInfo();
                     outputWriter.println(versionString);
+                    break;
+                }
+                case 'l': {
+                    language = getopt.getOptarg();
                     break;
                 }
             }
@@ -585,6 +592,10 @@ public class ClientMain {
         return commands;
     }
 
+    public String getLanguage() {
+        return language;
+    }
+    
     /**
      * This method allows ClientCommands to insert a small note to be displayed after the command has been executed. A
      * note can be an indicaiton of a problem that was handled or a note about some option that should be changed.

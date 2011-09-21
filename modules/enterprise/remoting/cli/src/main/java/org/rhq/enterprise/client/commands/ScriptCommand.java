@@ -150,10 +150,11 @@ public class ScriptCommand implements ClientCommand {
         } catch (ScriptException e) {
 
             String message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
-            message = message.replace("sun.org.mozilla.javascript.internal.EcmaError: ", "");
-            message = message.replace("(<Unknown source>#1) in <Unknown source> at line number 1", "");
-
-            client.getPrintWriter().println(message);
+            if (message != null) {
+                message = message.replace("sun.org.mozilla.javascript.internal.EcmaError: ", "");
+                message = message.replace("(<Unknown source>#1) in <Unknown source> at line number 1", "");
+                client.getPrintWriter().println(message);
+            }
             client.getPrintWriter().println(script);
             for (int i = 0; i < e.getColumnNumber(); i++) {
                 client.getPrintWriter().print(" ");
@@ -171,7 +172,7 @@ public class ScriptCommand implements ClientCommand {
             bindings = new StandardBindings(client.getPrintWriter(), client.getRemoteClient());
 
             try {
-                jsEngine = ScriptEngineFactory.getScriptEngine("JavaScript", new PackageFinder(Arrays
+                jsEngine = ScriptEngineFactory.getScriptEngine(client.getLanguage(), new PackageFinder(Arrays
                     .asList(getLibDir())), bindings);
                 jsEngine.eval("1+1");
             } catch (ScriptException e) {

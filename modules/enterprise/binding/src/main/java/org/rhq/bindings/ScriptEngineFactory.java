@@ -25,7 +25,9 @@ import java.beans.Introspector;
 import java.beans.MethodDescriptor;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.script.Bindings;
 import javax.script.ScriptContext;
@@ -36,6 +38,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.rhq.bindings.engine.JsEngineInitializer;
+import org.rhq.bindings.engine.JythonEngineInitializer;
 import org.rhq.bindings.engine.ScriptEngineInitializer;
 import org.rhq.bindings.util.PackageFinder;
 
@@ -55,10 +58,19 @@ import org.rhq.bindings.util.PackageFinder;
 public class ScriptEngineFactory {
     private static final Log LOG = LogFactory.getLog(ScriptEngineFactory.class);
     
-    private static final ScriptEngineInitializer[] KNOWN_ENGINES = {new JsEngineInitializer()};
+    private static final Set<ScriptEngineInitializer> KNOWN_ENGINES = new HashSet<ScriptEngineInitializer>();
+    
+    static {
+        addEngineInitializer(new JsEngineInitializer());
+        addEngineInitializer(new JythonEngineInitializer());
+    }
     
     private ScriptEngineFactory() {
         
+    }
+    
+    public static void addEngineInitializer(ScriptEngineInitializer initializer) {
+        KNOWN_ENGINES.add(initializer);
     }
     
     /**

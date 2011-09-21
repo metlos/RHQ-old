@@ -68,6 +68,7 @@
       <copy file="${settings.localRepository}/org/testng/testng/${testng.version}/testng-${testng.version}.jar" tofile="${lib.home}/testng-${testng.version}.jar" verbose="true" />
    	  <copy file="${settings.localRepository}/org/rhq/rhq-script-bindings/${project.version}/rhq-script-bindings-${project.version}.jar" tofile="${lib.home}/rhq-script-bindings-${project.version}.jar" verbose="true" />
    	  <copy file="${settings.localRepository}/hibernate-annotations/hibernate-annotations/${hibernate-annotations.version}/hibernate-annotations-${hibernate-annotations.version}.jar" todir="${lib.home}" verbose="true" />
+      <copy file="${settings.localRepository}/org/python/jython-standalone/${jython.version}/jython-standalone-${jython.version}.jar" tofile="${lib.home}/jython-standalone-${jython.version}.jar" verbose="true" />
    </target>
 
    <target name="prepare-samples-dir">

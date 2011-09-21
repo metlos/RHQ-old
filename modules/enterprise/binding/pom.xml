@@ -195,6 +195,15 @@
             <groupId>jboss</groupId>
             <artifactId>javassist</artifactId>
         </dependency>
+        
+        
+        <dependency>
+        	<groupId>org.python</groupId>
+        	<artifactId>jython-standalone</artifactId>
+        	<version>2.5.2</version>
+        	<type>jar</type>
+        	<scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>

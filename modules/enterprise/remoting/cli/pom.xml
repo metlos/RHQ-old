@@ -25,6 +25,7 @@
       <persistence-api.version>1.0</persistence-api.version>
       <hibernate-all.version>1.0.0.Alpha9</hibernate-all.version>
       <opencsv.version>1.8</opencsv.version>
+      <jython.version>2.5.2</jython.version>
    </properties>
 
    <dependencies>
@@ -135,6 +136,7 @@
                            <property name="jline.version" value="${jline.version}" />
                            <property name="log4j.version" value="${log4j.version}" />
                            <property name="testng.version" value="${testng.version}" />
+                           <property name="jython.version" value="${jython.version}" />
                            <property name="persistence-api.version" value="${persistence-api.version}" />
                            <property name="rhq.client.build.exclude.cli.jar" value="${rhq.client.build.exclude.cli.jar}" />
                            <property name="rhq.client.build.include.client.jar" value="${rhq.client.build.include.client.jar}" />
