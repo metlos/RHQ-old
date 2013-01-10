@@ -34,10 +34,10 @@ import org.rhq.core.domain.configuration.definition.constraint.RegexConstraint;
  * The drift subsystem has a fixed configuration definition. That is, its property definitions
  * are the same always. There is no metadata that needs to be read in from a descriptor - this definition
  * is fixed and the code requires all the property definitions to follow what is encoded in this POJO.
- * 
+ *
  * Note that this class must mimic the definition data as found in the database. The installer
  * will prepopulate the configuration definition tables that match the definitions encoded in this POJO.
- *  
+ *
  * @author Jay Shaughnessy
  * @author John Mazzitelli
  */
@@ -86,12 +86,13 @@ public class DriftConfigurationDefinition implements Serializable {
      * The basedir property is specified in two parts - a "context" and a "name". Taken together
      * the value of the basedir can be determined. The value name is just a simple name that
      * is used to look up the basedir value within the appropriate context. A context can be
-     * one of four places - either the value is a named property in a resource's plugin configuration,
+     * one of five places - either the value is a named property in a resource's plugin configuration,
      * a named property in a resource's resource configuration, a named trait that is emitted by a
-     * resource or an absolute path found on a file system.
+     * resource, an absolute path found on a file system or an "implicit" value which is only valid for resources that
+     * compute the drift in code by implementing the DriftDetectionFacet.
      */
     public enum BaseDirValueContext {
-        pluginConfiguration, resourceConfiguration, measurementTrait, fileSystem
+        pluginConfiguration, resourceConfiguration, measurementTrait, fileSystem, implicit
     }
 
     /**
@@ -133,7 +134,7 @@ public class DriftConfigurationDefinition implements Serializable {
      * This will allow all fields to be editable.
      * If you need a configuration definition to show an existing configuration, use the definition
      * returned by {@link #getInstanceForExistingConfiguration()}.
-     * 
+     *
      * @return configuration definition
      */
     public static ConfigurationDefinition getInstance() {
@@ -144,7 +145,7 @@ public class DriftConfigurationDefinition implements Serializable {
      * Returns a configuration definition suitable for showing an existing drift definition.
      * This will set certain fields as read-only - those fields which the user is not allowed to
      * edit on exiting drift definition (which includes name, basedir and includes/excludes filters).
-     * 
+     *
      * @return configuration definition
      */
     public static ConfigurationDefinition getInstanceForExistingConfiguration() {
