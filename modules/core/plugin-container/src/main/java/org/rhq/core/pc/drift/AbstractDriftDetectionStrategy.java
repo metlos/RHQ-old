@@ -27,13 +27,23 @@ import static org.rhq.core.domain.drift.DriftChangeSetCategory.DRIFT;
 import static org.rhq.core.util.file.FileUtil.copyFile;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -43,7 +53,12 @@ import org.rhq.common.drift.FileEntry;
 import org.rhq.common.drift.Headers;
 import org.rhq.core.domain.drift.DriftChangeSetCategory;
 import org.rhq.core.domain.drift.DriftDefinition;
-import org.rhq.core.pluginapi.drift.DriftFileStatus;
+import org.rhq.core.domain.drift.Filter;
+import org.rhq.core.pluginapi.drift.FileInfo;
+import org.rhq.core.pluginapi.drift.FileStatus;
+import org.rhq.core.util.MessageDigestGenerator;
+import org.rhq.core.util.file.FileUtil;
+import org.rhq.core.util.file.PathFilter;
 
 /**
  * @author Lukas Krejci
@@ -54,6 +69,7 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
 
     protected final DriftClient driftClient;
     protected final ChangeSetManager changeSetMgr;
+    protected final MessageDigestGenerator digestGenerator = new MessageDigestGenerator(MessageDigestGenerator.SHA_256);
 
     protected AbstractDriftDetectionStrategy(DriftClient driftClient, ChangeSetManager changeSetMgr) {
         this.driftClient = driftClient;
@@ -77,9 +93,6 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
     }
 
     protected abstract boolean isBaseDirValid(String baseDir);
-
-    protected abstract void writeSnapshot(final DriftDetectionSchedule schedule, final String basedir,
-        ChangeSetWriter writer) throws IOException;
 
     @Override
     public void generateSnapshot(DriftDetectionSummary summary) throws IOException {
@@ -110,7 +123,17 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
         try {
             writer = changeSetMgr.getChangeSetWriter(snapshot, createHeaders(schedule, COVERAGE, 0));
 
-            writeSnapshot(schedule, basedir, writer);
+            List<Filter> includes = schedule.getDriftDefinition().getIncludes();
+            List<Filter> excludes = schedule.getDriftDefinition().getExcludes();
+
+            Set<FileInfo> files = filter(allFilesIterator(basedir), includes, excludes);
+            for(FileInfo f : files) {
+                String sha = sha256(basedir, f.getPath());
+
+                FileEntry entry = FileEntry.addedFileEntry(f.getPath(), sha, f.getLastModified(), f.getSize());
+
+                writer.write(entry);
+            }
 
             if (schedule.getDriftDefinition().isPinned()) {
                 copyFile(snapshot, new File(snapshot.getParentFile(), DriftDetector.FILE_SNAPSHOT_PINNED));
@@ -123,7 +146,52 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
         }
     }
 
-    protected abstract Set<FileEntry> scanBaseDir(String basedir, DriftDefinition driftDef) throws IOException;
+    protected abstract Iterator<FileInfo> allFilesIterator(String basedir) throws IOException;
+
+    protected abstract String sha256(String basedir, String filePath) throws IOException;
+
+    private Set<FileInfo> filter(Iterator<FileInfo> allFiles, List<Filter> includes, List<Filter> excludes) {
+        Pattern includePattern = null;
+        Pattern excludePattern = null;
+
+        if (!includes.isEmpty()) {
+            includePattern = FileUtil.generateRegex(convert(includes));
+        }
+
+        if (!excludes.isEmpty()) {
+            excludePattern = FileUtil.generateRegex(convert(excludes));
+        }
+
+        Set<FileInfo> ret = new HashSet<FileInfo>();
+
+        while(allFiles.hasNext()) {
+            FileInfo f = allFiles.next();
+
+            if (includePattern != null && !includePattern.matcher(f.getPath()).matches()) {
+                continue;
+            }
+
+            if (excludePattern != null && excludePattern.matcher(f.getPath()).matches()) {
+                continue;
+            }
+
+            ret.add(f);
+        }
+
+        return ret;
+    }
+
+    List<PathFilter> convert(List<Filter> filters) {
+        List<PathFilter> pathFilters = new ArrayList<PathFilter>(filters.size());
+        for (Filter filter : filters) {
+            String filterPattern = filter.getPattern();
+            String filterPath = filter.getPath();
+
+            PathFilter f = new PathFilter(FilenameUtils.normalize(filterPath), filterPattern);
+            pathFilters.add(f);
+        }
+        return pathFilters;
+    }
 
     @Override
     public void generateDriftChangeSet(DriftDetectionSummary summary) throws IOException {
@@ -141,10 +209,12 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
         File snapshotFile = isPinned ? new File(currentFullSnapshot.getParentFile(), DriftDetector.FILE_SNAPSHOT_PINNED)
             : currentFullSnapshot;
 
+        DriftDefinition driftDef = summary.getSchedule().getDriftDefinition();
+
         // get a Set of all files in the detection, consider them initially new files, and we'll knock the
         // list down as we go.  As we build up FileEntries in memory this Set will shrink.  It's marginally
         // less memory than if we had both in memory at the same time.
-        Set<FileEntry> newFiles = scanBaseDir(basedir, schedule.getDriftDefinition());
+        Set<FileInfo> newFiles = filter(allFilesIterator(basedir), driftDef.getIncludes(), driftDef.getExcludes());
 
         final List<FileEntry> unchangedEntries = new LinkedList<FileEntry>();
         final List<FileEntry> changedEntries = new LinkedList<FileEntry>();
@@ -162,8 +232,7 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
                 snapshotReader = changeSetMgr.getChangeSetReader(snapshotFile);
 
                 if (!isBaseDirValid(basedir)) {
-                    log.warn("The base directory [" + basedir + "] for " + schedule
-                        + " does not exist.");
+                    log.warn("The base directory [" + basedir + "] for " + schedule + " does not exist.");
                 }
 
                 if (isPinned) {
@@ -202,19 +271,28 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
             }
 
             // add new files to the snapshotEntries and deltaEntries
-            for (FileEntry file : newFiles) {
+            for (FileInfo file : newFiles) {
                 try {
                     if (log.isInfoEnabled()) {
-                        log.info("Detected added file for " + schedule + " --> " + new File(basedir, file.getFile()).getAbsolutePath());
+                        log.info("Detected added file for "
+                            + schedule
+                            + " --> "
+                            + new File(basedir, file.getPath()).getPath());
                     }
 
-                    addedEntries.add(file);
+                    FileEntry entry = getAddedFileEntry(basedir, file);
+                    if (entry != null) {
+                        addedEntries.add(entry);
+                    }
                 } catch (Throwable t) {
                     // report the error but keep going, perhaps it is specific to a single file, try to
                     // finish the change set generation.
                     log.error(
-                        "An unexpected error occurred while generating a drift change set for file " + file.getFile()
-                            + " in schedule " + schedule + ". Skipping file.", t);
+                        "An unexpected error occurred while generating a drift change set for file "
+                            + file.getPath()
+                            + " in schedule "
+                            + schedule
+                            + ". Skipping file.", t);
                 }
             }
 
@@ -277,7 +355,7 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
         }
     }
 
-    protected abstract DriftFileStatus getFileStatus(DriftDefinition definition, String basedir, String path) throws IOException;
+    protected abstract FileStatus getFileStatus(String basedir, String path) throws IOException;
 
     /**
      * Process the entries for the snapshotReader. Each entry will be placed in one of the various Lists depending
@@ -287,23 +365,25 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
      * @throws IOException
      */
     private boolean scanSnapshot(DriftDetectionSchedule schedule, String basedir, ChangeSetReader snapshotReader,
-        Set<FileEntry> newFiles, List<FileEntry> unchangedEntries, List<FileEntry> changedEntries,
+        Set<FileInfo> newFiles, List<FileEntry> unchangedEntries, List<FileEntry> changedEntries,
         List<FileEntry> removedEntries, List<FileEntry> changedPinnedEntries) throws IOException {
-
-        DriftDefinition driftDefinition = schedule.getDriftDefinition();
 
         boolean result = false;
 
         for (FileEntry entry : snapshotReader) {
             newFiles.remove(entry);
 
-            DriftFileStatus fileStatus = getFileStatus(driftDefinition, basedir, entry.getFile());
+            FileStatus fileStatus = getFileStatus(basedir, entry.getFile());
 
             if (!(fileStatus.isExisting() && fileStatus.isReadable())) {
                 // The file has been deleted or is no longer readable, since the last scan
                 if (log.isDebugEnabled()) {
-                    log.debug("Detected " + (fileStatus.isExisting() ? "unreadable" : "deleted") + " file for " + schedule
-                        + " --> " + new File(basedir, entry.getFile()));
+                    log.debug("Detected "
+                        + (fileStatus.isExisting() ? "unreadable" : "deleted")
+                        + " file for "
+                        + schedule
+                        + " --> "
+                        + new File(basedir, entry.getFile()));
                 }
                 removedEntries.add(removedFileEntry(entry.getFile(), entry.getNewSHA()));
 
@@ -321,10 +401,12 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
                 // size or lastModified test fails.  We may not have size or lastModified values for the
                 // entry when the current snapshot was provided by the server, either due to a synch or
                 // pinning scenario.  The server does not store that information and will provide -1 for defaults.
-                if (entry.getLastModified() == -1 || entry.getSize() == -1
-                    || entry.getLastModified() != fileStatus.getLastModified() || entry.getSize() != fileStatus.getSize()) {
+                if (entry.getLastModified() == -1
+                    || entry.getSize() == -1
+                    || entry.getLastModified() != fileStatus.getLastModified()
+                    || entry.getSize() != fileStatus.getSize()) {
 
-                    currentSHA = fileStatus.getHash();
+                    currentSHA = sha256(basedir, fileStatus.getPath());
                     isChanged = !entry.getNewSHA().equals(currentSHA);
                 }
 
@@ -512,4 +594,95 @@ public abstract class AbstractDriftDetectionStrategy implements DriftDetectionSt
             }
         }
     }
+
+    protected String sha256(InputStream str) throws IOException {
+        return digestGenerator.calcDigestString(str);
+    }
+
+    /**
+    * File.canRead() is basically a security check and does not guarantee that the file contents can truly be read.
+    * Certain files, like socket files on linux, can not be processed and it's not known until actually trying to
+    * construct a FileInputStream, as is done when we actually try to generate the digest. These files will generate
+    * a FileNotFoundException. This method will catch, log and suppress that issue, and return null
+    * indicating the file is not suitable for drift detection.
+    *
+    * @param basedir the drift def base directory
+    * @param file the new file to add
+    * @return the new FileEntry, or null if this file is not appropriate for drift detection (typically if the
+    * underlying file does not support the needed File operations.
+    * @throws Will throw unexpected IOExceptions, outside of the FileNotFoundException it looks for.
+    */
+    private FileEntry getAddedFileEntry(String basedir, FileInfo file) throws IOException {
+        FileEntry result = null;
+
+        try {
+            String sha256 = sha256(basedir, file.getPath());
+            String relativePath = file.getPath();
+            long lastModified = file.getLastModified();
+            long length = file.getSize();
+
+            result = FileEntry.addedFileEntry(relativePath, sha256, lastModified, length);
+
+        } catch (FileNotFoundException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Skipping " + file.getPath() + " since it is missing or is not a physically readable file.");
+            }
+        }
+
+        return result;
+    }
+
+    private Iterator<FileInfo> _scanBaseDir(String basedir, DriftDefinition driftDef) throws IOException {
+
+        final File bd = new File(basedir);
+
+        // If the basedir is still valid we need to do a directory tree scan to look for newly added files
+        if (isBaseDirValid(basedir)) {
+            return new Iterator<FileInfo>() {
+                Deque<File> stack = new LinkedList<File>();
+                {
+                    stack.push(bd);
+                }
+
+                List<File> nextFiles = new ArrayList<File>();
+
+                @Override
+                public boolean hasNext() {
+                    prepareNext();
+                    return !nextFiles.isEmpty();
+                }
+
+                @Override
+                public FileInfo next() {
+                    prepareNext();
+
+                    return FileInfo.fromRelativeFile(nextFiles.remove(0));
+                }
+
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
+                }
+
+                private void prepareNext() {
+                    while (nextFiles.isEmpty()) {
+                        File root = stack.poll();
+                        if (root != null) {
+                            stack.pop();
+                        } else {
+                            break;
+                        }
+
+                        File[] children = root.listFiles();
+                        if (children != null) {
+                            nextFiles = Arrays.asList(children);
+                        }
+                    }
+                }
+            };
+        } else {
+            return Collections.<FileInfo>emptySet().iterator();
+        }
+    }
+
 }

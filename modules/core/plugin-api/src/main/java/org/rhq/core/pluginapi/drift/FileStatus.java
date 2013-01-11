@@ -24,16 +24,16 @@ package org.rhq.core.pluginapi.drift;
  * @author Lukas Krejci
  *
  */
-public class DriftFileStatus extends DriftFile {
+public class FileStatus extends FileInfo {
     private boolean exists;
     private boolean readable;
 
-    public DriftFileStatus(String hash) {
-        super(hash);
+    public FileStatus(String path) {
+        super(path);
     }
 
-    public DriftFileStatus(String hash, boolean exists, boolean readable, long lastModified) {
-        super(hash);
+    public FileStatus(String path, boolean exists, boolean readable, long lastModified) {
+        super(path);
         this.exists = exists;
         this.readable = readable;
     }

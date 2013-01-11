@@ -20,9 +20,9 @@
 
 package org.rhq.core.pluginapi.drift;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Set;
-
-import org.rhq.core.domain.drift.DriftDefinition;
 
 
 /**
@@ -34,7 +34,9 @@ import org.rhq.core.domain.drift.DriftDefinition;
  */
 public interface DriftDetectionFacet {
 
-    Set<Drift> generateShapshot(DriftDefinition driftDefinition);
+    Set<FileInfo> getAllFiles(String basedir);
 
-    DriftFileStatus getFileStatus(DriftDefinition definition, String filePath);
+    FileStatus getFileStatus(String basedir, String filePath);
+
+    InputStream openStream(String basedir, String filePath) throws IOException;
 }

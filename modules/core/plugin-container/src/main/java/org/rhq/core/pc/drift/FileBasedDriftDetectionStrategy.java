@@ -26,17 +26,23 @@ import static org.rhq.core.util.file.FileUtil.forEachFile;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import org.rhq.common.drift.ChangeSetWriter;
 import org.rhq.common.drift.FileEntry;
 import org.rhq.core.domain.drift.DriftDefinition;
 import org.rhq.core.domain.drift.Filter;
-import org.rhq.core.pluginapi.drift.DriftFileStatus;
-import org.rhq.core.util.MessageDigestGenerator;
+import org.rhq.core.pluginapi.drift.FileInfo;
+import org.rhq.core.pluginapi.drift.FileStatus;
 import org.rhq.core.util.file.FileUtil;
 import org.rhq.core.util.file.FileVisitor;
 
@@ -46,8 +52,6 @@ import org.rhq.core.util.file.FileVisitor;
  * @author John Sanda
  */
 public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrategy {
-
-    private MessageDigestGenerator digestGenerator = new MessageDigestGenerator(MessageDigestGenerator.SHA_256);
 
     public FileBasedDriftDetectionStrategy(DriftClient driftClient, ChangeSetManager changeSetMgr) {
         super(driftClient, changeSetMgr);
@@ -70,53 +74,84 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         return f.exists() && f.isDirectory();
     }
 
+    /* (non-Javadoc)
+     * @see org.rhq.core.pc.drift.AbstractDriftDetectionStrategy#allFilesIterator(java.lang.String)
+     */
     @Override
-    protected Set<FileEntry> scanBaseDir(String basedir, DriftDefinition driftDef) throws IOException {
-        // get a Set of all files in the detection, consider them initially new files, and we'll knock the
-        // list down as we go.  As we build up FileEntries in memory this Set will shrink.  It's marginally
-        // less memory than if we had both in memory at the same time.
-        Set<FileEntry> newFiles = null;
-
+    protected Iterator<FileInfo> allFilesIterator(final String basedir) throws IOException {
         final File bd = new File(basedir);
 
         // If the basedir is still valid we need to do a directory tree scan to look for newly added files
-        if (bd.isDirectory()) {
-            newFiles = new HashSet<FileEntry>(1000);
-            final Set<FileEntry> nf = newFiles;
-            List<Filter> includes = driftDef.getIncludes();
-            List<Filter> excludes = driftDef.getExcludes();
+        if (isBaseDirValid(basedir)) {
+            return new Iterator<FileInfo>() {
+                Deque<File> stack = new LinkedList<File>();
+                {
+                    stack.push(bd);
+                }
 
-            for (File dir : getScanDirectories(bd, includes)) {
-                forEachFile(dir, new FilterFileVisitor(bd, includes, excludes, new FileVisitor() {
-                    @Override
-                    public void visit(File file) {
-                        if (file.canRead()) {
-                            try {
-                                nf.add(FileEntry.addedFileEntry(FileUtil.getRelativePath(file, bd), sha256(file), file.lastModified(), file.length()));
-                            } catch (IOException e) {
-                                log.warn("Failed to compute SHA256 of file " + file.getAbsolutePath());
-                                //and continue, we don't want to break the whole scan
+                List<File> nextFiles = new ArrayList<File>();
+
+                @Override
+                public boolean hasNext() {
+                    prepareNext();
+                    return !nextFiles.isEmpty();
+                }
+
+                @Override
+                public FileInfo next() {
+                    prepareNext();
+
+                    if (nextFiles.isEmpty()) {
+                        throw new NoSuchElementException();
+                    }
+
+                    File next = nextFiles.remove(0);
+
+                    if (next.isDirectory()) {
+                        stack.push(next);
+                    }
+
+                    return FileInfo.fromRelativeFile(new File(FileUtil.getRelativePath(next, bd)));
+                }
+
+                @Override
+                public void remove() {
+                    throw new UnsupportedOperationException();
+                }
+
+                private void prepareNext() {
+                    while (nextFiles.isEmpty()) {
+                        File root = stack.poll();
+                        if (root != null) {
+                            stack.pop();
+                        } else {
+                            break;
+                        }
+
+                        File[] children = root.listFiles();
+                        if (children != null) {
+                            nextFiles = new ArrayList<File>(Arrays.asList(children));
+
+                            //check readability
+                            for(Iterator<File> it = nextFiles.iterator(); it.hasNext();) {
+                                if (!it.next().canRead()) {
+                                    it.remove();
+                                }
                             }
-                        } else if (log.isDebugEnabled()) {
-                            log.debug("Skipping " + file.getPath() + " as new file since it is not readable.");
                         }
                     }
-                }));
-            }
+                }
+            };
         } else {
-            newFiles = Collections.emptySet();
+            return Collections.<FileInfo>emptySet().iterator();
         }
-
-        return newFiles;
     }
 
     @Override
-    protected DriftFileStatus getFileStatus(DriftDefinition definition, String basedir, String path) throws IOException {
+    protected FileStatus getFileStatus(String basedir, String path) throws IOException {
         File f = new File(basedir, path);
 
-        String sha = sha256(f);
-
-        DriftFileStatus ret = new DriftFileStatus(sha);
+        FileStatus ret = new FileStatus(path); //we always want relative paths
         ret.setExisting(f.exists());
         ret.setReadable(f.canRead());
         ret.setLastModified(f.lastModified());
@@ -143,6 +178,11 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         }
 
         return directories;
+    }
+
+    @Override
+    protected String sha256(String basedir, String filePath) throws IOException {
+        return sha256(new File(basedir, filePath));
     }
 
     private String sha256(File file) throws IOException {
@@ -203,7 +243,7 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         List<Filter> excludes = driftDef.getExcludes();
 
         for (File dir : getScanDirectories(basedir, includes)) {
-            forEachFile(dir, new FilterFileVisitor(basedir, includes, excludes, new FileVisitor() {
+            forEachFile(dir, new FilterFileVisitor(basedir.getAbsolutePath(), includes, excludes, new FileVisitor() {
                 @Override
                 public void visit(File file) {
                     try {

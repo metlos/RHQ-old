@@ -21,16 +21,12 @@
 package org.rhq.core.pc.drift;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.io.InputStream;
+import java.util.Iterator;
 
-import org.rhq.common.drift.ChangeSetWriter;
-import org.rhq.common.drift.FileEntry;
-import org.rhq.core.domain.drift.DriftDefinition;
-import org.rhq.core.pluginapi.drift.Drift;
 import org.rhq.core.pluginapi.drift.DriftDetectionFacet;
-import org.rhq.core.pluginapi.drift.DriftFile;
-import org.rhq.core.pluginapi.drift.DriftFileStatus;
+import org.rhq.core.pluginapi.drift.FileInfo;
+import org.rhq.core.pluginapi.drift.FileStatus;
 
 /**
  * @author Lukas Krejci
@@ -40,7 +36,8 @@ public class FacetBasedDriftDetectionStrategy extends AbstractDriftDetectionStra
 
     private final DriftDetectionFacet facet;
 
-    public FacetBasedDriftDetectionStrategy(DriftDetectionFacet facet, DriftClient driftClient, ChangeSetManager changeSetManager) {
+    public FacetBasedDriftDetectionStrategy(DriftDetectionFacet facet, DriftClient driftClient,
+        ChangeSetManager changeSetManager) {
         super(driftClient, changeSetManager);
         this.facet = facet;
     }
@@ -51,33 +48,23 @@ public class FacetBasedDriftDetectionStrategy extends AbstractDriftDetectionStra
     }
 
     @Override
-    protected void writeSnapshot(DriftDetectionSchedule schedule, String basedir,
-        ChangeSetWriter writer) throws IOException {
-
-        Set<Drift> drifts = facet.generateShapshot(schedule.getDriftDefinition());
-
-        for(Drift drift : drifts) {
-            DriftFile f = drift.getNewFile();
-            FileEntry entry = FileEntry.addedFileEntry(drift.getPath(), f.getHash(), f.getLastModified(), f.getSize());
-            writer.write(entry);
-        }
+    protected FileStatus getFileStatus(String basedir, String path) throws IOException {
+        return facet.getFileStatus(basedir, path);
     }
 
     @Override
-    protected DriftFileStatus getFileStatus(DriftDefinition definition, String basedir, String path) throws IOException {
-        return facet.getFileStatus(definition, path);
+    protected Iterator<FileInfo> allFilesIterator(String basedir) throws IOException {
+        return facet.getAllFiles(basedir).iterator();
     }
 
     @Override
-    protected Set<FileEntry> scanBaseDir(String basedir, DriftDefinition driftDef) throws IOException {
-        Set<Drift> snapshot = facet.generateShapshot(driftDef);
+    protected String sha256(String basedir, String filePath) throws IOException {
+        InputStream stream = facet.openStream(basedir, filePath);
 
-        Set<FileEntry> ret = new HashSet<FileEntry>();
-        for(Drift d : snapshot) {
-            FileEntry entry = FileEntry.addedFileEntry(d.getPath(), d.getNewFile().getHash(), d.getNewFile().getLastModified(), d.getNewFile().getSize());
-            ret.add(entry);
+        try {
+            return sha256(stream);
+        } finally {
+            stream.close();
         }
-
-        return ret;
     }
 }

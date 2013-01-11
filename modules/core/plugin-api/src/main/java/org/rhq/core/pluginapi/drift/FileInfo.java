@@ -20,24 +20,44 @@
 
 package org.rhq.core.pluginapi.drift;
 
+import java.io.File;
+
+import org.rhq.core.util.file.FileUtil;
+
 /**
- * Represents contents of a file being reported for drift. We don't actually store any data in this class but rather
- * metadata about the content.
- *
  * @author Lukas Krejci
+ *
  */
-public class DriftFile {
+public class FileInfo {
 
-    private final String hash;
-    private long size = -1;
-    private long lastModified = -1;
+    private final String path;
+    private long size;
+    private long lastModified;
+    private boolean directory;
 
-    public DriftFile(String hash) {
-        this.hash = hash == null ? "0" : hash;
+    public static FileInfo fromRelativeFile(File f) {
+        return fromFile(f, false);
     }
 
-    public String getHash() {
-        return hash;
+    public static FileInfo fromAbsoluteFile(File f) {
+        return fromFile(f, true);
+    }
+
+    public static FileInfo fromFile(File f, boolean useAbsolutePath) {
+        FileInfo ret = new FileInfo(FileUtil.useForwardSlash(useAbsolutePath ? f.getAbsolutePath() : f.getPath()));
+        ret.setLastModified(f.lastModified());
+        ret.setSize(f.length());
+        ret.setDirectory(f.isDirectory());
+
+        return ret;
+    }
+
+    public FileInfo(String path) {
+        this.path = path;
+    }
+
+    public String getPath() {
+        return path;
     }
 
     public long getSize() {
@@ -56,9 +76,17 @@ public class DriftFile {
         this.lastModified = lastModified;
     }
 
+    public boolean isDirectory() {
+        return directory;
+    }
+
+    public void setDirectory(boolean directory) {
+        this.directory = directory;
+    }
+
     @Override
     public int hashCode() {
-        return hash == null ? 0 : hash.hashCode();
+        return path.hashCode();
     }
 
     @Override
@@ -67,12 +95,17 @@ public class DriftFile {
             return true;
         }
 
-        if (!(o instanceof DriftFile)) {
+        if (!(o instanceof FileInfo)) {
             return false;
         }
 
-        DriftFile other = (DriftFile) o;
+        FileInfo other = (FileInfo) o;
 
-        return hash == null ? other.getHash() == null : hash.equals(other.getHash());
+        return path.equals(other.path);
+    }
+
+    @Override
+    public String toString() {
+        return path;
     }
 }
