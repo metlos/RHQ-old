@@ -79,7 +79,7 @@ public class FilterFileVisitor implements FileVisitor {
 
     private Pattern excludesPattern;
 
-    public FilterFileVisitor(File basedir, List<Filter> includes, List<Filter> excludes, FileVisitor visitor) {
+    public FilterFileVisitor(String basedir, List<Filter> includes, List<Filter> excludes, FileVisitor visitor) {
         this.includes = convert(basedir, includes);
         this.excludes = convert(basedir, excludes);
         this.visitor = visitor;
@@ -87,7 +87,7 @@ public class FilterFileVisitor implements FileVisitor {
         excludesPattern = generateRegex(this.excludes);
     }
 
-    private List<PathFilter> convert(File basedir, List<Filter> filters) {
+    private List<PathFilter> convert(String basedir, List<Filter> filters) {
         List<PathFilter> pathFilters = new ArrayList<PathFilter>(filters.size());
         for (Filter filter : filters) {
             pathFilters.add(normalize(basedir, filter));
@@ -106,7 +106,7 @@ public class FilterFileVisitor implements FileVisitor {
      * @param filter The filter to convert and normalize
      * @return The converted and normalized filter
      */
-    private PathFilter normalize(File basedir, Filter filter) {
+    private PathFilter normalize(String basedir, Filter filter) {
         File path = new File(filter.getPath());
         File filterPath;
         String filterPattern;
@@ -123,7 +123,7 @@ public class FilterFileVisitor implements FileVisitor {
             filterPattern = filter.getPattern();
         }
 
-        return new PathFilter(FilenameUtils.normalize(filterPath.getAbsolutePath()), filterPattern);
+        return new PathFilter(FilenameUtils.normalize(filterPath.getPath()), filterPattern);
     }
 
     private boolean isEmpty(String s) {

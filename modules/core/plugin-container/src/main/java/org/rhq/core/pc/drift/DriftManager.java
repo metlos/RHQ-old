@@ -112,6 +112,9 @@ public class DriftManager extends AgentService implements DriftAgentService, Dri
         driftDetector.setDriftClient(this);
 
         InventoryManager inventoryMgr = PluginContainer.getInstance().getInventoryManager();
+
+        driftDetector.setInventoryManager(inventoryMgr);
+
         long startTime = System.currentTimeMillis();
         initSchedules(inventoryMgr.getPlatform(), inventoryMgr);
         long endTime = System.currentTimeMillis();
@@ -442,6 +445,7 @@ public class DriftManager extends AgentService implements DriftAgentService, Dri
         sender.setDriftFiles(driftFiles);
         sender.setHeaders(headers);
         sender.setChangeSetManager(changeSetMgr);
+        sender.setInventoryManager(getInventoryManager());
 
         driftThreadPool.execute(sender);
 
@@ -715,6 +719,15 @@ public class DriftManager extends AgentService implements DriftAgentService, Dri
                 throw new IllegalArgumentException("Cannot obtain trait [" + baseDirValueName + "] for resource ["
                     + resource.getName() + "]");
             }
+            break;
+        }
+        case implicit: {
+            File[] roots = File.listRoots();
+            if (roots == null || roots.length == 0) {
+                throw new IllegalStateException("Could not determine a file system root");
+            }
+
+            baseLocation = roots[0].getAbsolutePath();
             break;
         }
         default: {
