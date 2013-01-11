@@ -1,10 +1,12 @@
 package org.rhq.core.pc.drift;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,10 +19,39 @@ import org.apache.commons.logging.LogFactory;
 import org.rhq.common.drift.ChangeSetReader;
 import org.rhq.common.drift.FileEntry;
 import org.rhq.common.drift.Headers;
+import org.rhq.core.clientapi.agent.PluginContainerException;
 import org.rhq.core.domain.drift.DriftFile;
+import org.rhq.core.pc.inventory.InventoryManager;
+import org.rhq.core.pc.inventory.ResourceContainer;
+import org.rhq.core.pc.util.FacetLockType;
+import org.rhq.core.pluginapi.drift.DriftDetectionFacet;
 import org.rhq.core.util.stream.StreamUtil;
 
 public class DriftFilesSender implements Runnable {
+
+    private static interface LocatorStrategy {
+        InputStream find(String basedir, String filePath) throws IOException;
+    }
+
+    private static class FileLocatorStrategy implements LocatorStrategy {
+        @Override
+        public InputStream find(String basedir, String filePath) throws IOException {
+            return new BufferedInputStream(new FileInputStream(new File(basedir, filePath)));
+        }
+    }
+
+    private static class FacetLocatorStrategy implements LocatorStrategy {
+        private DriftDetectionFacet facet;
+
+        public FacetLocatorStrategy(DriftDetectionFacet facet) {
+            this.facet = facet;
+        }
+
+        @Override
+        public InputStream find(String basedir, String filePath) throws IOException {
+            return facet.openStream(basedir, filePath);
+        }
+    }
 
     private Log log = LogFactory.getLog(DriftFilesSender.class);
 
@@ -33,6 +64,8 @@ public class DriftFilesSender implements Runnable {
     private ChangeSetManager changeSetMgr;
 
     private DriftClient driftClient;
+
+    private InventoryManager inventoryManager;
 
     public void setResourceId(int resourceId) {
         this.resourceId = resourceId;
@@ -52,6 +85,10 @@ public class DriftFilesSender implements Runnable {
 
     public void setChangeSetManager(ChangeSetManager changeSetManager) {
         changeSetMgr = changeSetManager;
+    }
+
+    public void setInventoryManager(InventoryManager inventoryManager) {
+        this.inventoryManager = inventoryManager;
     }
 
     @Override
@@ -80,6 +117,20 @@ public class DriftFilesSender implements Runnable {
             //
             // jsanda
 
+            LocatorStrategy fileLocator = null;
+            ResourceContainer rc = inventoryManager.getResourceContainer(resourceId);
+
+            if (rc.getResourceComponent() instanceof DriftDetectionFacet) {
+                try {
+                    DriftDetectionFacet facet = rc.createResourceComponentProxy(DriftDetectionFacet.class, FacetLockType.READ, 30000, true, true);
+                    fileLocator = new FacetLocatorStrategy(facet);
+                } catch (PluginContainerException e) {
+                    log.error("Failed to get the resource component for resource " + resourceId + " while trying send drift files to server for drift definition " + headers.getDriftDefinitionId() + ".", e);
+                }
+            } else {
+                fileLocator = new FileLocatorStrategy();
+            }
+
             String timestamp = Long.toString(System.currentTimeMillis());
             String contentFileName = "content_" + timestamp + ".zip";
             final File zipFile = new File(changeSetDir, contentFileName);
@@ -87,14 +138,15 @@ public class DriftFilesSender implements Runnable {
 
             if (driftFiles.size() == 1) {
                 DriftFile driftFile = driftFiles.get(0);
-                File file = find(driftFile);
-                if (file == null || !file.exists()) {
+                String filePath = find(driftFile);
+                if (filePath == null) {
                     log.warn("Unable to find file for " + driftFile);
                 } else {
                     if (log.isDebugEnabled()) {
-                        log.debug("Adding " + file.getPath() + " to " + contentFileName);
+                        log.debug("Adding " + new File(headers.getBasedir(), filePath).getPath() + " to " + contentFileName);
                     }
-                    addFileToContentZipFile(stream, driftFile, file);
+
+                    addFileToContentZipFile(stream, driftFile, filePath, fileLocator);
                     ++numContentFiles;
                 }
             } else {
@@ -106,15 +158,11 @@ public class DriftFilesSender implements Runnable {
                         continue;
                     }
                     File file = new File(headers.getBasedir(), entry.getFile());
-                    if (file == null || !file.exists()) {
-                        log.warn("Unable to find file for " + driftFile);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Adding " + file.getPath() + " to " + contentFileName);
-                        }
-                        addFileToContentZipFile(stream, driftFile, file);
-                        ++numContentFiles;
+                    if (log.isDebugEnabled()) {
+                        log.debug("Adding " + file.getPath() + " to " + contentFileName);
                     }
+                    addFileToContentZipFile(stream, driftFile, entry.getFile(), fileLocator);
+                    ++numContentFiles;
                 }
             }
 
@@ -127,8 +175,7 @@ public class DriftFilesSender implements Runnable {
 
             if (log.isInfoEnabled()) {
                 long endTime = System.currentTimeMillis();
-                log.info("Finished submitting request to send content to server in " + (endTime - startTime) +
-                        " ms");
+                log.info("Finished submitting request to send content to server in " + (endTime - startTime) + " ms");
             }
 
         } catch (IOException e) {
@@ -155,8 +202,8 @@ public class DriftFilesSender implements Runnable {
         }
     }
 
-    private void addFileToContentZipFile(ZipOutputStream stream, DriftFile driftFile, File file) throws IOException {
-        FileInputStream fis = new FileInputStream(file);
+    private void addFileToContentZipFile(ZipOutputStream stream, DriftFile driftFile, String path, LocatorStrategy locator) throws IOException {
+        InputStream fis = locator.find(headers.getBasedir(), path);
         try {
             stream.putNextEntry(new ZipEntry(driftFile.getHashId()));
             StreamUtil.copy(fis, stream, false);
@@ -165,13 +212,13 @@ public class DriftFilesSender implements Runnable {
         }
     }
 
-    private File find(DriftFile driftFile) throws IOException {
+    private String find(DriftFile driftFile) throws IOException {
         ChangeSetReader reader = changeSetMgr.getChangeSetReader(resourceId, headers.getDriftDefinitionName());
 
         try {
             for (FileEntry entry : reader) {
                 if (entry.getNewSHA().equals(driftFile.getHashId())) {
-                    return new File(headers.getBasedir(), entry.getFile());
+                    return entry.getFile();
                 }
             }
             return null;
@@ -194,7 +241,12 @@ public class DriftFilesSender implements Runnable {
     }
 
     private String defToString() {
-        return "[resourceId: " + resourceId + ", driftDefinitionId: " + headers.getDriftDefinitionId() +
-                ", driftDefinitionName: " + headers.getDriftDefinitionName() + "]";
+        return "[resourceId: "
+            + resourceId
+            + ", driftDefinitionId: "
+            + headers.getDriftDefinitionId()
+            + ", driftDefinitionName: "
+            + headers.getDriftDefinitionName()
+            + "]";
     }
 }

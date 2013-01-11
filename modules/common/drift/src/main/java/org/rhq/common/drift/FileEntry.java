@@ -136,4 +136,24 @@ public class FileEntry implements Serializable, Comparable<FileEntry> {
     public int compareTo(FileEntry o) {
         return this.file.compareTo(o.getFile());
     }
+
+    @Override
+    public int hashCode() {
+        return this.file.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (!(o instanceof FileEntry)) {
+            return false;
+        }
+
+        FileEntry other = (FileEntry) o;
+
+        return file.equals(other.file);
+    }
 }
