@@ -445,6 +445,7 @@ public class DriftManager extends AgentService implements DriftAgentService, Dri
         sender.setDriftFiles(driftFiles);
         sender.setHeaders(headers);
         sender.setChangeSetManager(changeSetMgr);
+        sender.setInventoryManager(getInventoryManager());
 
         driftThreadPool.execute(sender);
 

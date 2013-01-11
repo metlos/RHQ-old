@@ -20,31 +20,20 @@
 
 package org.rhq.core.pc.drift;
 
-import static org.rhq.common.drift.FileEntry.addedFileEntry;
-import static org.rhq.core.util.file.FileUtil.forEachFile;
-
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 
-import org.rhq.common.drift.ChangeSetWriter;
-import org.rhq.common.drift.FileEntry;
-import org.rhq.core.domain.drift.DriftDefinition;
-import org.rhq.core.domain.drift.Filter;
 import org.rhq.core.pluginapi.drift.FileInfo;
 import org.rhq.core.pluginapi.drift.FileStatus;
 import org.rhq.core.util.file.FileUtil;
-import org.rhq.core.util.file.FileVisitor;
 
 /**
  * Drift detection using direct file system scanning.
@@ -57,16 +46,6 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         super(driftClient, changeSetMgr);
     }
 
-    protected void writeSnapshot(final DriftDetectionSchedule schedule,
-        final String basedir, ChangeSetWriter writer) throws IOException {
-        File b = new File(basedir);
-
-        if (b.isDirectory()) {
-            doDirectoryScan(schedule, schedule.getDriftDefinition(), b, writer);
-            writer.close();
-        }
-    }
-
     @Override
     protected boolean isBaseDirValid(String baseDir) {
         File f = new File(baseDir);
@@ -74,9 +53,6 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         return f.exists() && f.isDirectory();
     }
 
-    /* (non-Javadoc)
-     * @see org.rhq.core.pc.drift.AbstractDriftDetectionStrategy#allFilesIterator(java.lang.String)
-     */
     @Override
     protected Iterator<FileInfo> allFilesIterator(final String basedir) throws IOException {
         final File bd = new File(basedir);
@@ -160,26 +136,6 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
         return ret;
     }
 
-    private static Set<File> getScanDirectories(final File basedir, List<Filter> includes) {
-
-        Set<File> directories = new HashSet<File>();
-
-        if (null == includes || includes.isEmpty()) {
-            directories.add(basedir);
-        } else {
-            for (Filter filter : includes) {
-                String path = filter.getPath();
-                if (".".equals(path)) {
-                    directories.add(basedir);
-                } else {
-                    directories.add(new File(basedir, path));
-                }
-            }
-        }
-
-        return directories;
-    }
-
     @Override
     protected String sha256(String basedir, String filePath) throws IOException {
         return sha256(new File(basedir, filePath));
@@ -187,90 +143,5 @@ public class FileBasedDriftDetectionStrategy extends AbstractDriftDetectionStrat
 
     private String sha256(File file) throws IOException {
         return digestGenerator.calcDigestString(file);
-    }
-
-    /**
-     * File.canRead() is basically a security check and does not guarantee that the file contents can truly be read.
-     * Certain files, like socket files on linux, can not be processed and it's not known until actually trying to
-     * construct a FileInputStream, as is done when we actually try to generate the digest. These files will generate
-     * a FileNotFoundException. This method will catch, log and suppress that issue, and return null
-     * indicating the file is not suitable for drift detection.
-     *
-     * @param basedir the drift def base directory
-     * @param file the new file to add
-     * @return the new FileEntry, or null if this file is not appropriate for drift detection (typically if the
-     * underlying file does not support the needed File operations.
-     * @throws Will throw unexpected IOExceptions, outside of the FileNotFoundException it looks for.
-     */
-    private FileEntry getAddedFileEntry(File basedir, File file) throws IOException {
-        FileEntry result = null;
-
-        try {
-            String sha256 = sha256(file);
-            String relativePath = relativePath(basedir, file);
-            long lastModified = file.lastModified();
-            long length = file.length();
-
-            result = addedFileEntry(relativePath, sha256, lastModified, length);
-
-        } catch (FileNotFoundException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Skipping " + file.getPath() + " since it is missing or is not a physically readable file.");
-            }
-        }
-
-        return result;
-    }
-
-    private static String relativePath(File basedir, File file) {
-        //TODO replace this with FileUtil.getRelativePath() ?
-        if (basedir.equals(file)) {
-            return ".";
-        }
-        String filePath = file.getAbsolutePath();
-        String basedirPath = basedir.getAbsolutePath();
-        int basedirLen = basedirPath.length();
-        if (!basedirPath.endsWith(File.separator)) {
-            ++basedirLen;
-        }
-        return filePath.substring(basedirLen);
-    }
-
-    private void doDirectoryScan(final DriftDetectionSchedule schedule, DriftDefinition driftDef, final File basedir,
-        final ChangeSetWriter writer) {
-
-        List<Filter> includes = driftDef.getIncludes();
-        List<Filter> excludes = driftDef.getExcludes();
-
-        for (File dir : getScanDirectories(basedir, includes)) {
-            forEachFile(dir, new FilterFileVisitor(basedir.getAbsolutePath(), includes, excludes, new FileVisitor() {
-                @Override
-                public void visit(File file) {
-                    try {
-                        if (!file.canRead()) {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Skipping " + file.getPath() + " since we do not have read access.");
-                            }
-                            return;
-                        }
-
-                        if (log.isDebugEnabled()) {
-                            log.debug("Adding " + file.getPath() + " to coverage change set for " + schedule);
-                        }
-
-                        FileEntry addedFileEntry = getAddedFileEntry(basedir, file);
-                        if (null != addedFileEntry) {
-                            writer.write(addedFileEntry);
-                        }
-
-                    } catch (Throwable t) {
-                        // report the error but keep going, perhaps it is specific to a single file, try to
-                        // finish the detection.
-                        log.error("An unexpected error occurred while generating a coverage change set for file "
-                            + file.getPath() + " in schedule " + schedule + ". Skipping file.", t);
-                    }
-                }
-            }));
-        }
     }
 }
