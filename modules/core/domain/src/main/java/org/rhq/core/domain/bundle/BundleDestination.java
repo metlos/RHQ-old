@@ -52,7 +52,7 @@ import org.rhq.core.domain.tagging.Tag;
 
 /**
  * Defines a logical destination for deployment of a bundle.  Defines the target platform group and the
- * target deploy directory on those platforms.  A Bundle can have several defined destinations although 
+ * target deploy directory on those platforms.  A Bundle can have several defined destinations although
  * Destination is specific to a single Bundle.
  *
  * @author Jay Shaughnessy
@@ -79,11 +79,11 @@ public class BundleDestination implements Serializable {
     @Column(name = "DESCRIPTION", nullable = true)
     private String description;
 
-    @Column(name = "DEPLOY_DIR", nullable = false)
+    @Column(name = "DEPLOY_DIR", nullable = true)
     private String deployDir;
 
     @Column(name = "DEST_BASE_DIR_NAME", nullable = false)
-    private String destinationBaseDirectoryName;
+    private String destinationTargetName;
 
     @Column(name = "CTIME")
     private Long ctime = System.currentTimeMillis();
@@ -109,12 +109,12 @@ public class BundleDestination implements Serializable {
         // for JPA use
     }
 
-    public BundleDestination(Bundle bundle, String name, ResourceGroup group, String destinationBaseDirectoryName,
+    public BundleDestination(Bundle bundle, String name, ResourceGroup group, String destinationTargetName,
         String deployDir) {
         this.bundle = bundle;
         this.name = name;
         this.group = group;
-        this.destinationBaseDirectoryName = destinationBaseDirectoryName;
+        this.destinationTargetName = destinationTargetName;
         this.deployDir = deployDir;
     }
 
@@ -155,19 +155,48 @@ public class BundleDestination implements Serializable {
      * destination base directories. These are given names in the type's plugin descriptor.
      * This method returns the name of the destination base directory where all bundles
      * will be destined to be deployed on all resources found in the destination group.
-     * 
+     *
      * @return name of the destination base directory - this isn't an actual directory location
      *         (it can't be because it will be different on all individual machines where the bundles
-     *         will be deployed), it is the name of the destination location as defined in 
+     *         will be deployed), it is the name of the destination location as defined in
+     *         the plugin descriptor for the type of resources where the bundle is to be deployed
+     *         (i.e. it is the type of the compatible group associated with this destination).
+     *
+     * @deprecated since 4.7.0. The name of this method no longer represents the semantics correctly. There are now more than one
+     * possible types of destinations for bundles and therefore we had to come up with a more appropriate name. Please
+     * change your code to call {@link #getDestinationTargetName()}
+     */
+    @Deprecated
+    public String getDestinationBaseDirectoryName() {
+        return destinationTargetName;
+    }
+
+    /**
+     * @deprecated since 4.7.0. See {@link #getDestinationBaseDirectoryName()} for deprecation explanation
+     */
+    @Deprecated
+    public void setDestinationBaseDirectoryName(String destinationBaseDirectoryName) {
+        this.destinationTargetName = destinationBaseDirectoryName;
+    }
+
+    /**
+     * All resource types that can be targets for bundle deployments define one or more
+     * destinations to which bundles can be deployed. These are given names in the type's plugin descriptor.
+     * This method returns the name of the destination target where all bundles
+     * will be destined to be deployed on all resources found in the destination group.
+     *
+     * @return name of the destination target - this isn't an actual directory location
+     *         (it can't be because it will be different on all individual machines where the bundles
+     *         will be deployed), it is the name of the destination location as defined in
      *         the plugin descriptor for the type of resources where the bundle is to be deployed
      *         (i.e. it is the type of the compatible group associated with this destination).
      */
-    public String getDestinationBaseDirectoryName() {
-        return destinationBaseDirectoryName;
+    public String getDestinationTargetName() {
+        return destinationTargetName;
     }
 
-    public void setDestinationBaseDirectoryName(String destinationBaseDirectoryName) {
-        this.destinationBaseDirectoryName = destinationBaseDirectoryName;
+    public void setDestinationTargetName(String destinationTargetName) {
+        this.destinationTargetName = destinationTargetName;
     }
 
     public long getCtime() {

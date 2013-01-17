@@ -508,8 +508,8 @@
            </xs:documentation>
         </xs:annotation>
         <xs:complexType>
-           <xs:sequence>
-              <xs:element name="destination-base-dir" maxOccurs="unbounded" minOccurs="1">
+           <xs:choice minOccurs="1" maxOccurs="unbounded">
+              <xs:element name="destination-base-dir">
                   <xs:complexType>
                        <xs:annotation>
                            <xs:documentation>
@@ -552,7 +552,34 @@
                       </xs:attribute>
                   </xs:complexType>
               </xs:element>
-          </xs:sequence>
+              <xs:element name="destination-resource">
+                <xs:annotation>
+                    <xs:documentation>
+                        The resource destinations are destinations that are being handled by the code of the resource
+                        components themselves. I.e. these are specialized destinations that do application specific
+                        processing of the bundles and deploy them in an application specific manner (i.e. through an API
+                        into a database, etc.).                        
+                    </xs:documentation>                    
+                </xs:annotation>
+                <xs:complexType>
+                    <xs:attribute name="name" type="xs:string" use="required">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The name of the destination.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                    <xs:attribute name="description" type="xs:string" />
+                    <xs:attribute name="bundle-type" type="xs:string">
+                        <xs:annotation>
+                            <xs:documentation>
+                                The name of the bundle type that this destination accepts.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:attribute>
+                </xs:complexType>
+              </xs:element>
+          </xs:choice>
        </xs:complexType>
    </xs:element>
 

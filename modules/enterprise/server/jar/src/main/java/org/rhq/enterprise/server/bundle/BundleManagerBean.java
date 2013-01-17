@@ -312,7 +312,7 @@ public class BundleManagerBean implements BundleManagerLocal, BundleManagerRemot
         // if there is a .. in the path that looks suspicious, reject it. (note the : is to reject things like C:..\..\dir on windows)
         // this won't allow everything (such as directories that start with ".." like "..abc" or "/abc/..def") but if you are naming
         // your directories in those strange ways, you deserve what you get
-        if (deployDir.startsWith("..") || deployDir.matches(".*[/:\\\\]\\.\\..*")) {
+        if (deployDir != null && (deployDir.startsWith("..") || deployDir.matches(".*[/:\\\\]\\.\\..*"))) {
             throw new IllegalArgumentException(
                 "Destination directories are not allowed to have '..' parent directory path elements");
         }

@@ -36,6 +36,8 @@ import org.apache.commons.logging.LogFactory;
 
 import org.rhq.core.clientapi.descriptor.plugin.Bundle;
 import org.rhq.core.clientapi.descriptor.plugin.BundleTargetDescriptor;
+import org.rhq.core.clientapi.descriptor.plugin.BundleTargetDescriptor.DestinationBaseDir;
+import org.rhq.core.clientapi.descriptor.plugin.BundleTargetDescriptor.DestinationResource;
 import org.rhq.core.clientapi.descriptor.plugin.ContentDescriptor;
 import org.rhq.core.clientapi.descriptor.plugin.DriftDescriptor;
 import org.rhq.core.clientapi.descriptor.plugin.EventDescriptor;
@@ -52,7 +54,6 @@ import org.rhq.core.clientapi.descriptor.plugin.RunsInsideType;
 import org.rhq.core.clientapi.descriptor.plugin.ServerDescriptor;
 import org.rhq.core.clientapi.descriptor.plugin.ServiceDescriptor;
 import org.rhq.core.clientapi.descriptor.plugin.SubCategoryDescriptor;
-import org.rhq.core.clientapi.descriptor.plugin.BundleTargetDescriptor.DestinationBaseDir;
 import org.rhq.core.domain.bundle.BundleType;
 import org.rhq.core.domain.bundle.ResourceTypeBundleConfiguration;
 import org.rhq.core.domain.configuration.Configuration;
@@ -556,17 +557,27 @@ public class PluginMetadataParser {
 
             BundleTargetDescriptor bundleTarget = resourceDescriptor.getBundleTarget();
             if (bundleTarget != null) {
-                List<DestinationBaseDir> destBaseDirs = bundleTarget.getDestinationBaseDir();
-                if (destBaseDirs != null && destBaseDirs.size() > 0) {
+                List<Object> destinations = bundleTarget.getDestinationBaseDirOrDestinationResource();
+                if (destinations != null && destinations.size() > 0) {
                     Configuration c = new Configuration();
                     ResourceTypeBundleConfiguration bundleConfiguration = new ResourceTypeBundleConfiguration(c);
-                    for (DestinationBaseDir destBaseDir : destBaseDirs) {
-                        String name = destBaseDir.getName();
-                        String valueContext = destBaseDir.getValueContext();
-                        String valueName = destBaseDir.getValueName();
-                        String description = destBaseDir.getDescription();
-                        bundleConfiguration.addBundleDestinationBaseDirectory(name, valueContext, valueName,
-                            description);
+                    for (Object o : destinations) {
+                        if (o instanceof DestinationBaseDir) {
+                            DestinationBaseDir destBaseDir = (DestinationBaseDir) o;
+                            String name = destBaseDir.getName();
+                            String valueContext = destBaseDir.getValueContext();
+                            String valueName = destBaseDir.getValueName();
+                            String description = destBaseDir.getDescription();
+                            bundleConfiguration.addBundleDestinationBaseDirectory(name, valueContext, valueName,
+                                description);
+                        } else if (o instanceof DestinationResource) {
+                            DestinationResource destRes = (DestinationResource) o;
+                            String name = destRes.getName();
+                            String descr = destRes.getDescription();
+                            String bundleType = destRes.getBundleType();
+
+                            bundleConfiguration.addBundleDestinationResource(name, descr, bundleType);
+                        }
                     }
                     resourceType.setResourceTypeBundleConfiguration(bundleConfiguration);
                 }

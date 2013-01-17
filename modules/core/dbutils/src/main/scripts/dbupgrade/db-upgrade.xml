@@ -1988,6 +1988,9 @@
                 </schema-directSQL>
             </schemaSpec>
 
+        	<schemaSpec version="2.129">
+        		<schema-alterColumn table="RHQ_BUNDLE_DESTINATION" column="DEPLOY_DIR" nullable="true" />
+        	</schemaSpec>
         </dbupgrade>
     </target>
 </project>
