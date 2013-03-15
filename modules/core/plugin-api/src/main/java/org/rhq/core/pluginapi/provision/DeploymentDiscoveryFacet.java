@@ -24,12 +24,12 @@
 package org.rhq.core.pluginapi.provision;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
 import java.util.Set;
 
 /**
  * Resource components implementing this interface can inform about the deployments present inside them. These
- * deployments can be mapped to either the resources (represented by the resource compontents) themselves or to any
+ * deployments can be mapped to either the resources (represented by the resource components) themselves or to any
  * number of child resources. <p> I.e. it is not necessary for each child resource component to implement this interface
  * but it is not disallowed either.
  *
@@ -45,12 +45,12 @@ public interface DeploymentDiscoveryFacet {
     /**
      * This method is only called for deployments with deployment type {@link Deployment.Type#API API}.
      *
-     * <p>If the resource component also implements the {@link DeployerFacet}, the returned data must be deployable
-     * again using the {@link DeployerFacet#deploy(DeploymentRequest)} method.
+     * <p>If the resource component also implements the {@link ProvisioningFacet}, the returned data must be deployable
+     * again using the {@link ProvisioningFacet#provision(ProvisioningRequest)} method.
      *
      * @param deploymentKey the key of the deployment to download
      * @return the stream with the deployment contents or null if such operation is not supported
      * @throws IOException if the downloading is supported but failed for some reason
      */
-    OutputStream download(Deployment.Key deploymentKey) throws IOException;
+    InputStream download(Deployment.Key deploymentKey) throws IOException;
 }

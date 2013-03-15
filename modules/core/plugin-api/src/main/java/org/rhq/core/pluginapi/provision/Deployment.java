@@ -28,7 +28,7 @@ import java.util.Set;
 
 /**
  * A representation of a deployment. A deployment can either be filesystem-based or can have been made using an API
- * call. A deployment is also identifiable using its key and consists of files of some sort.
+ * call. A deployment is identifiable using its key and consists of files of some sort.
  *
  * <p> Notice that the files might or might not correspond to some physical files in some kind of storage somewhere.
  * They can merely be logical names identifying "parts" of the deployment.

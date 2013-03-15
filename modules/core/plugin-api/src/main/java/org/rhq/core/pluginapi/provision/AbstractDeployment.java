@@ -90,7 +90,7 @@ abstract class AbstractDeployment implements Deployment {
     }
 
     /**
-     * @return the configuration for the deployer to deploy this deployment
+     * @return the configuration for the deployer to provision this deployment
      */
     public Configuration getDeploymentConfiguration() {
         return deploymentConfiguration;

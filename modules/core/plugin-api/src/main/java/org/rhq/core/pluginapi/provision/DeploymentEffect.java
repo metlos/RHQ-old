@@ -35,14 +35,14 @@ import java.util.Set;
 import org.rhq.core.domain.configuration.Configuration;
 
 /**
- * Desribes the effects a (un)deployment has on the inventory.
+ * Desribes the effects a (un)provisioning of a deployment has on the inventory.
  *
  * @author Lukas Krejci
  */
 public final class DeploymentEffect implements Serializable {
 
     /**
-     * Desribes the effect of a deployment on a resource.
+     * Desribes the effect of provisioning a deployment on a resource.
      */
     public final static class ResourceEffect {
 

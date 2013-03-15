@@ -30,15 +30,15 @@ import org.rhq.core.domain.configuration.Configuration;
 /**
  * @author Lukas Krejci
  */
-public final class DeploymentRequest {
-    private final File downloadedFile;
+public final class ProvisioningRequest {
+    private final File deploymentSourceFile;
     private final String mimetype;
     private final String destination;
     private final Configuration deploymentConfiguration;
 
-    public DeploymentRequest(File downloadedFile, String mimetype, String destination,
-                             Configuration deploymentConfiguration) {
-        this.downloadedFile = downloadedFile;
+    public ProvisioningRequest(File deploymentSourceFile, String mimetype, String destination,
+                               Configuration deploymentConfiguration) {
+        this.deploymentSourceFile = deploymentSourceFile;
         this.mimetype = mimetype;
         this.destination = destination;
         this.deploymentConfiguration = deploymentConfiguration;
@@ -47,8 +47,8 @@ public final class DeploymentRequest {
     /**
      * @return the file downloaded from the RHQ server that should be deployed
      */
-    public File getDownloadedFile() {
-        return downloadedFile;
+    public File getDeploymentSourceFile() {
+        return deploymentSourceFile;
     }
 
     /**
@@ -74,8 +74,8 @@ public final class DeploymentRequest {
 
     @Override
     public String toString() {
-        return "DeploymentRequest[" +
-            "downloadedFile=" + downloadedFile +
+        return "ProvisioningRequest[" +
+            "deploymentSourceFile=" + deploymentSourceFile +
             ", mimetype='" + mimetype + '\'' +
             ", destination='" + destination + "'" +
             ", deploymentConfiguration=" + deploymentConfiguration +

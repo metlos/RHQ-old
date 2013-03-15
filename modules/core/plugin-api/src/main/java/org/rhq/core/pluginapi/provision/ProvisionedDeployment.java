@@ -30,29 +30,32 @@ import org.rhq.core.domain.configuration.Configuration;
 import org.rhq.core.util.exception.ThrowableUtil;
 
 /**
+ * A provisioned deployment describes the result of a provisioning operation. It can either be successful ({@link
+ * #isSuccess()} returns true) or in error, in which case an error message can be provided.
+ *
  * @author Lukas Krejci
  */
-public final class RealizedDeployment extends AbstractDeployment {
+public final class ProvisionedDeployment extends AbstractDeployment {
 
     private final String errorMessage;
 
-    public static RealizedDeployment fromException(Deployment.Type type, Key deploymentKey, Throwable exception) {
+    public static ProvisionedDeployment fromException(Deployment.Type type, Key deploymentKey, Throwable exception) {
         String errorMessage = ThrowableUtil.getAllMessages(exception);
-        return new RealizedDeployment(type, deploymentKey, errorMessage);
+        return new ProvisionedDeployment(type, deploymentKey, errorMessage);
     }
 
-    private RealizedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                               Set<File> deployedFiles, String errorMessage) {
+    private ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
+                                  Set<File> deployedFiles, String errorMessage) {
         super(type, deploymentKey, deploymentConfiguration, deployedFiles);
         this.errorMessage = errorMessage;
     }
 
-    public RealizedDeployment(Deployment.Type type, Key deploymentKey, String errorMessage) {
+    public ProvisionedDeployment(Deployment.Type type, Key deploymentKey, String errorMessage) {
         this(type, deploymentKey, null, null, errorMessage);
     }
 
-    public RealizedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                              Set<File> deployedFiles) {
+    public ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
+                                 Set<File> deployedFiles) {
         this(type, deploymentKey, deploymentConfiguration, deployedFiles, null);
     }
 
@@ -66,7 +69,7 @@ public final class RealizedDeployment extends AbstractDeployment {
 
     @Override
     public String toString() {
-        return "RealizedDeployment[" +
+        return "ProvisionedDeployment[" +
             "errorMessage='" + errorMessage + '\'' +
             ", type=" + getType() +
             ", deploymentKey='" + getKey() + '\'' +
