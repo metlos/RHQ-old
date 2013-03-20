@@ -24,6 +24,10 @@
 package org.rhq.core.pluginapi.provision;
 
 import java.io.File;
+import java.net.URI;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import org.rhq.core.domain.configuration.Configuration;
 
@@ -31,16 +35,36 @@ import org.rhq.core.domain.configuration.Configuration;
  * @author Lukas Krejci
  */
 public final class ProvisioningRequest {
+    @NotNull
     private final File deploymentSourceFile;
+
+    @NotNull
     private final String mimetype;
+
+    @Nullable
     private final String destination;
+
+    @Nullable
+    private final URI destinationUri;
+
+    @Nullable
     private final Configuration deploymentConfiguration;
 
-    public ProvisioningRequest(File deploymentSourceFile, String mimetype, String destination,
-                               Configuration deploymentConfiguration) {
+    public ProvisioningRequest(@NotNull File deploymentSourceFile, @NotNull String mimetype,
+        @Nullable String destination, @Nullable URI destinationUri,
+        @Nullable Configuration deploymentConfiguration) {
+
+        if (destination == null && destinationUri == null) {
+            throw new IllegalArgumentException("Exactly one of 'destination' and 'destinationUri' must not be null, but both are.");
+        }
+        if (destination != null && destinationUri != null) {
+            throw new IllegalArgumentException("Exactly one of 'destination' and 'destinationUri' must not be null, but none is.");
+        }
+
         this.deploymentSourceFile = deploymentSourceFile;
         this.mimetype = mimetype;
         this.destination = destination;
+        this.destinationUri = destinationUri;
         this.deploymentConfiguration = deploymentConfiguration;
     }
 
@@ -66,10 +90,25 @@ public final class ProvisioningRequest {
     }
 
     /**
-     * @return the name of the destination on the target resource. The deployer might or might not need this value.
+     * This is the name of the destination the deployment should go to.
+     * This property is not null for the <code>deployable</code> elements in the plugin descriptor
+     * which are handled by the plugin that manages the target resource.
+     *
+     * @return the name of the destination on the target resource.
      */
     public String getDestination() {
         return destination;
+    }
+
+    /**
+     * This is the URI to provision the deployment to. This property is not null when a generic
+     * provisioning plugin handles the provisioning of a deployment to a <code>destination</code> defined
+     * by some other plugin.
+     *
+     * @return the URI of the destination
+     */
+    public URI getDestinationUri() {
+        return destinationUri;
     }
 
     @Override
@@ -78,6 +117,7 @@ public final class ProvisioningRequest {
             "deploymentSourceFile=" + deploymentSourceFile +
             ", mimetype='" + mimetype + '\'' +
             ", destination='" + destination + "'" +
+            ", destinationUri='" + destinationUri + "'" +
             ", deploymentConfiguration=" + deploymentConfiguration +
             ']';
     }
