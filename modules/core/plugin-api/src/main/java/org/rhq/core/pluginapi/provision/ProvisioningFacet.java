@@ -32,22 +32,30 @@ package org.rhq.core.pluginapi.provision;
 public interface ProvisioningFacet {
 
     /**
-     * Performs the deployment according to the request. If possible this method should not return before the deployment
-     * has actually been "realized" on the managed resource.
-     * <p>I.e. when deploying a WAR file, the implementation should check for and wait until the underlying application
+     * Performs the deployment according to the request. If possible this method should not return before the
+     * deployment has actually been "realized" on the managed resource.
+     * <p/>
+     * I.e. when deploying a WAR file, the implementation should check for and wait until the underlying application
      * server has processed and finished the deployment.
      *
-     * @param request the details of the deployment to perform
-     * @return a description of the deployment that occurred
+     * @param request      the details of the deployment to perform
+     * @param auditContext the context to access the provisioning progress auditing functionality
+     *
+     * @return a description of the successful deployment
+     *
+     * @throws org.rhq.core.pluginapi.provision.ProvisioningException in case of error
      */
-    ProvisionedDeployment provision(ProvisioningRequest request);
+    ProvisionedDeployment provision(ProvisioningRequest request, AuditContext auditContext)
+        throws ProvisioningException;
 
     /**
-     * Removes the deployment on this resource defined by the given key. This is meant to go out to the managed resource
-     * or file system and remove the deployment.
+     * Removes the deployment on this resource defined by the given key. This is meant to go out to the managed
+     * resource or file system and remove the deployment.
      *
-     * @param deploymentKey the key identifying the deployment on this resource
-     * @return the removed deployment as it existed before it was unprovisioned
+     * @param deploymentKey the key identifying the deployment
+     * @param auditContext  the context to access the provisioning progress auditing functionality
+     *
+     * @throws org.rhq.core.pluginapi.provision.ProvisioningException in case of error
      */
-    ProvisionedDeployment unprovision(Deployment.Key deploymentKey);
+    void unprovision(Deployment.Key deploymentKey, AuditContext auditContext) throws ProvisioningException;
 }

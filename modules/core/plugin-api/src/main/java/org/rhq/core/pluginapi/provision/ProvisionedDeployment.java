@@ -30,47 +30,20 @@ import org.rhq.core.domain.configuration.Configuration;
 import org.rhq.core.util.exception.ThrowableUtil;
 
 /**
- * A provisioned deployment describes the result of a provisioning operation. It can either be successful ({@link
- * #isSuccess()} returns true) or in error, in which case an error message can be provided.
+ * A provisioned deployment describes the result of a provisioning operation.
  *
  * @author Lukas Krejci
  */
 public final class ProvisionedDeployment extends AbstractDeployment {
 
-    private final String errorMessage;
-
-    public static ProvisionedDeployment fromException(Deployment.Type type, Key deploymentKey, Throwable exception) {
-        String errorMessage = ThrowableUtil.getAllMessages(exception);
-        return new ProvisionedDeployment(type, deploymentKey, errorMessage);
-    }
-
-    private ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                                  Set<URI> deployedFiles, String errorMessage) {
-        super(type, deploymentKey, deploymentConfiguration, deployedFiles);
-        this.errorMessage = errorMessage;
-    }
-
-    public ProvisionedDeployment(Deployment.Type type, Key deploymentKey, String errorMessage) {
-        this(type, deploymentKey, null, null, errorMessage);
-    }
-
     public ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
                                  Set<URI> deployedFiles) {
-        this(type, deploymentKey, deploymentConfiguration, deployedFiles, null);
-    }
-
-    public boolean isSuccess() {
-        return errorMessage == null;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
+        super(type, deploymentKey, deploymentConfiguration, deployedFiles);
     }
 
     @Override
     public String toString() {
         return "ProvisionedDeployment[" +
-            "errorMessage='" + errorMessage + '\'' +
             ", type=" + getType() +
             ", deploymentKey='" + getKey() + '\'' +
             ", deployedFiles=" + getDeployedFiles() +
