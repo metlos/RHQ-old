@@ -68,6 +68,33 @@ public interface AuditContext {
         }
     }
 
+    /**
+     * Use this method to provide audit information during provisioning operation, when the key of the deployment
+     * is not known yet.
+     *
+     * @param request the request object that started the provisioning operation
+     * @param action the action being performed
+     * @param basicInfo the basic information about the action (like file name being copied, etc.)
+     * @param category the category of the action, optional
+     * @param severity the severity of the action's result, optional
+     * @param description the detailed description of the action, optional
+     * @param attachment binary data associated with the action, optional
+     */
+    void audit(ProvisioningRequest request, String action, String basicInfo, Category category, Severity severity,
+        String description, Serializable attachment);
+
+    /**
+     * Use this method to provide audit information during unprovisioning operation, when the key of the deployment
+     * is known.
+     *
+     * @param deployment the identifier of the deployment
+     * @param action the action being performed
+     * @param basicInfo the basic information about the action (like file name being copied, etc.)
+     * @param category the category of the action, optional
+     * @param severity the severity of the action's result, optional
+     * @param description the detailed description of the action, optional
+     * @param attachment binary data associated with the action, optional
+     */
     void audit(Deployment.Key deployment, String action, String basicInfo, Category category, Severity severity,
         String description, Serializable attachment);
 }
