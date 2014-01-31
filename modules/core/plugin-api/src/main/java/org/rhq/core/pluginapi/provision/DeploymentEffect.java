@@ -44,7 +44,7 @@ public final class DeploymentEffect implements Serializable {
     /**
      * Desribes the effect of provisioning a deployment on a resource.
      */
-    public final static class ResourceEffect {
+    public final static class OnResource {
 
         /**
          * Describes what kind effect on a particular resource a deployment had
@@ -66,24 +66,24 @@ public final class DeploymentEffect implements Serializable {
         private final Configuration pluginConfiguration;
         private final Configuration resourceConfiguration;
 
-        public static ResourceEffect createAddedEffect(ResourceCoordinates resource, Backing backing) {
-            return new ResourceEffect(resource, Effect.ADDED, backing, null, null);
+        public static OnResource createAddedEffect(ResourceCoordinates resource, Backing backing) {
+            return new OnResource(resource, Effect.ADDED, backing, null, null);
         }
 
-        public static ResourceEffect createRemovedEffect(ResourceCoordinates resource) {
-            return new ResourceEffect(resource, Effect.REMOVED, null, null, null);
+        public static OnResource createRemovedEffect(ResourceCoordinates resource) {
+            return new OnResource(resource, Effect.REMOVED, null, null, null);
         }
 
-        public static ResourceEffect createContentModifiedEffect(ResourceCoordinates resource, Backing backing) {
-            return new ResourceEffect(resource, Effect.CONTENT_MODIFIED, backing, null, null);
+        public static OnResource createContentModifiedEffect(ResourceCoordinates resource, Backing backing) {
+            return new OnResource(resource, Effect.CONTENT_MODIFIED, backing, null, null);
         }
 
-        public static ResourceEffect createPluginConfigurationChangeEffect(ResourceCoordinates resource, Configuration pluginConfiguration) {
-            return new ResourceEffect(resource, Effect.PLUGIN_CONFIGURATION_CHANGE, null, pluginConfiguration, null);
+        public static OnResource createPluginConfigurationChangeEffect(ResourceCoordinates resource, Configuration pluginConfiguration) {
+            return new OnResource(resource, Effect.PLUGIN_CONFIGURATION_CHANGE, null, pluginConfiguration, null);
         }
 
-        public static ResourceEffect createResourceConfigurationChangeEffect(ResourceCoordinates resource, Configuration resourceConfiguration) {
-            return new ResourceEffect(resource, Effect.RESOURCE_CONFIGURATION_CHANGE, null, null, resourceConfiguration);
+        public static OnResource createResourceConfigurationChangeEffect(ResourceCoordinates resource, Configuration resourceConfiguration) {
+            return new OnResource(resource, Effect.RESOURCE_CONFIGURATION_CHANGE, null, null, resourceConfiguration);
         }
 
         /**
@@ -95,7 +95,8 @@ public final class DeploymentEffect implements Serializable {
          * @param pluginConfiguration the plugin configuration as it should look like after the deployment
          * @param resourceConfiguration the resource configuration once it should look like after the deployment
          */
-        public ResourceEffect(ResourceCoordinates resource, Effect effect, Backing backing, Configuration pluginConfiguration, Configuration resourceConfiguration) {
+        public OnResource(ResourceCoordinates resource, Effect effect, Backing backing,
+            Configuration pluginConfiguration, Configuration resourceConfiguration) {
             this.effect = effect;
             this.resource = resource;
             this.backing = backing;
@@ -126,9 +127,9 @@ public final class DeploymentEffect implements Serializable {
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof ResourceEffect)) return false;
+            if (!(o instanceof OnResource)) return false;
 
-            ResourceEffect that = (ResourceEffect) o;
+            OnResource that = (OnResource) o;
 
             if (!resource.equals(that.resource)) return false;
 
@@ -166,10 +167,10 @@ public final class DeploymentEffect implements Serializable {
         }
     }
 
-    private Map<FileSet, Set<ResourceEffect>> effects;
+    private Map<FileSet, Set<OnResource>> effects;
 
     public DeploymentEffect() {
-        effects = new HashMap<FileSet, Set<ResourceEffect>>();
+        effects = new HashMap<FileSet, Set<OnResource>>();
     }
 
     /**
@@ -182,7 +183,7 @@ public final class DeploymentEffect implements Serializable {
      *
      * @return the map of effects a deployment has on the inventory
      */
-    public Map<FileSet, Set<ResourceEffect>> getEffects() {
+    public Map<FileSet, Set<OnResource>> getEffects() {
         return effects;
     }
 

@@ -30,8 +30,10 @@ import java.util.Set;
 /**
  * Resource components implementing this interface can inform about the deployments present inside them. These
  * deployments can be mapped to either the resources (represented by the resource components) themselves or to any
- * number of child resources. <p> I.e. it is not necessary for each child resource component to implement this interface
- * but it is not disallowed either.
+ * number of child resources.
+ * <p/>
+ * I.e. it is not necessary for each child resource component to implement this interface but it is not disallowed
+ * either.
  *
  * @author Lukas Krejci
  */
@@ -43,13 +45,25 @@ public interface DeploymentDiscoveryFacet {
     Set<DiscoveredDeployment> discoverDeployments();
 
     /**
-     * This method is only called for deployments with deployment type {@link Deployment.Type#API API}.
+     * @param deploymentKey the deployment to test
      *
-     * <p>If the resource component also implements the {@link ProvisioningFacet}, the returned data must be deployable
+     * @return true if the deployment can be downloaded using the {@link #download(org.rhq.core.pluginapi.provision.Deployment.Key)}
+     *         method, false otherwise
+     */
+    boolean canDownload(Deployment.Key deploymentKey);
+
+    /**
+     * This method is only called for deployments with deployment type {@link Deployment.Type#API API}.
+     * <p/>
+     * If the resource component also implements the {@link ProvisioningFacet}, the returned data must be deployable
      * again using the {@link ProvisioningFacet#provision(ProvisioningRequest)} method.
      *
      * @param deploymentKey the key of the deployment to download
-     * @return the stream with the deployment contents or null if such operation is not supported
+     *
+     * @return the stream with the deployment contents or null if such operation is not supported (in which case {@link
+     *         #canDownload(org.rhq.core.pluginapi.provision.Deployment.Key)} should return false for the provided
+     *         deployment key)
+     *
      * @throws IOException if the downloading is supported but failed for some reason
      */
     InputStream download(Deployment.Key deploymentKey) throws IOException;

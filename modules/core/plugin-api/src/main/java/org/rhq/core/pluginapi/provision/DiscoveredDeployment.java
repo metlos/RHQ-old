@@ -33,51 +33,24 @@ import org.rhq.core.domain.configuration.Configuration;
  */
 public final class DiscoveredDeployment extends AbstractDeployment {
 
-    public static class AffectedResource {
-        public enum Backing {
-            FULL, PARTIAL
-        }
-
-        private final ResourceCoordinates resourceCoordinates;
-        private final Backing backing;
-
-        public AffectedResource(ResourceCoordinates resourceCoordinates,
-                                Backing backing) {
-            this.resourceCoordinates = resourceCoordinates;
-            this.backing = backing;
-        }
-
-        public ResourceCoordinates getResourceCoordinates() {
-            return resourceCoordinates;
-        }
-
-        public Backing getBacking() {
-            return backing;
-        }
-    }
-
-    private Set<AffectedResource> affectedResources;
+    private final DeploymentEffect deploymentEffect;
 
     /**
-     * @param type
+     * @param type the type of the deployment, usually this will be {@link Type#API}.
      * @param deploymentKey the key that identifies the deployment on the resource
      * @param deploymentConfiguration the configuration of the discovered deployment
      * @param deployedFiles the set of files the deployment consists of
-     * @param affectedResources the resources affected by this deployment
+     * @param deploymentEffect the resources affected by this deployment
      */
     public DiscoveredDeployment(Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                                Set<File> deployedFiles, Set<AffectedResource> affectedResources) {
+                                Set<File> deployedFiles, DeploymentEffect deploymentEffect) {
         super(type, deploymentKey, deploymentConfiguration, deployedFiles);
 
-        if (affectedResources == null || affectedResources.isEmpty()) {
-            throw new IllegalArgumentException("affectedResources can't be null and must have at least 1 item.");
-        }
-
-        this.affectedResources = affectedResources;
+        this.deploymentEffect = deploymentEffect;
     }
 
-    public Set<AffectedResource> getAffectedResources() {
-        return affectedResources;
+    public DeploymentEffect getDeploymentEffect() {
+        return deploymentEffect;
     }
 
     @Override
@@ -87,7 +60,7 @@ public final class DiscoveredDeployment extends AbstractDeployment {
             ", deploymentKey=" + getKey() +
             ", deploymentConfiguration=" + getDeploymentConfiguration() +
             ", deployedFiles=" + getDeployedFiles() +
-            ", affectedResources=" + affectedResources +
+            ", affectedResources=" + deploymentEffect +
             ']';
     }
 }
