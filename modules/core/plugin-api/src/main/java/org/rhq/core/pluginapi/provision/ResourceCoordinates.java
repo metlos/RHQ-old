@@ -23,6 +23,7 @@
 
 package org.rhq.core.pluginapi.provision;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -37,7 +38,7 @@ import org.rhq.core.domain.resource.Resource;
  *
  * @author Lukas Krejci
  */
-public final class ResourceCoordinates implements Iterable<ResourceCoordinates> {
+public final class ResourceCoordinates implements Iterable<ResourceCoordinates>, Serializable {
 
     public static final class Builder {
         private List<ResourceCoordinates> path = new ArrayList<ResourceCoordinates>();

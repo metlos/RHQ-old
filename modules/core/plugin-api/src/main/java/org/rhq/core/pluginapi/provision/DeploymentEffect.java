@@ -25,9 +25,14 @@ package org.rhq.core.pluginapi.provision;
 
 import java.io.Serializable;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.rhq.core.domain.configuration.Configuration;
 
 /**
  * Desribes the effects a (un)provisioning of a deployment has on the inventory.
@@ -38,27 +43,219 @@ public final class DeploymentEffect implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private Map<Set<URI>, Set<DeploymentResourceEffect>> effects;
+    private static abstract class ResourceEffect implements Serializable {
+        private static final long serialVersionUID = 1L;
 
-    public DeploymentEffect() {
-        effects = new HashMap<Set<URI>, Set<DeploymentResourceEffect>>();
+        @Override
+        public boolean equals(Object other) {
+            return other != null && getClass() == other.getClass();
+        }
+
+        /**
+         * This effectively means that we cannot have more than 1 instance a type of resource effect in a set or map.
+         */
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+    }
+
+    private static abstract class ConfigurationModifiedEffect extends ResourceEffect {
+        private static final long serialVersionUID = 1L;
+        private final Configuration configuration;
+
+        protected ConfigurationModifiedEffect(Configuration configuration) {
+            this.configuration = configuration;
+        }
+
+        public Configuration getConfiguration() {
+            return configuration;
+        }
     }
 
     /**
-     * The keys in the returned map are file sets, each grouping the files in the deployment
-     * into groups affecting a single resource. The values then represent the effect on each resource.
+     * Describes the effect of a new resource being added as a result of a deployment.
+     */
+    public static final class ResourceAdded extends ResourceEffect {
+        private static final long serialVersionUID = 1L;
+        private final ResourceBacking backing;
+
+        public ResourceAdded(ResourceBacking backing) {
+            this.backing = backing;
+        }
+
+        public ResourceBacking getBacking() {
+            return backing;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return super.equals(other) || (other != null && other instanceof ResourceRemoved);
+        }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
+    }
+
+    /**
+     * Describes the effect of a resource being removed as a result of a deployment.
+     */
+    public static final class ResourceRemoved extends ResourceEffect {
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public boolean equals(Object other) {
+            return super.equals(other) || (other != null && other instanceof ResourceAdded);
+        }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
+    }
+
+    /**
+     * Describes the effect of the backing content of an existing resource being modified as a result of a deployment.
+     */
+    public static final class ContentModified extends ResourceEffect {
+        private static final long serialVersionUID = 1L;
+        private final ResourceBacking backing;
+
+        public ContentModified(ResourceBacking backing) {
+            this.backing = backing;
+        }
+
+        public ResourceBacking getBacking() {
+            return backing;
+        }
+    }
+
+    /**
+     * Describes the effect of a plugin configuration of an existing resource being modified as a result of a
+     * deployment.
+     */
+    public static final class PluginConfigurationModified extends ConfigurationModifiedEffect {
+        private static final long serialVersionUID = 1L;
+
+        public PluginConfigurationModified(Configuration configuration) {
+            super(configuration);
+        }
+    }
+
+    /**
+     * Describes the effect of a resource configuration of an existing resource being modified as a result of a
+     * deployment.
+     */
+    public static final class ResourceConfigurationModified extends ConfigurationModifiedEffect {
+        private static final long serialVersionUID = 1L;
+
+        public ResourceConfigurationModified(Configuration configuration) {
+            super(configuration);
+        }
+    }
+
+    /**
+     * A simple builder that can be used to initialize the deployment effect.
+     */
+    public static final class Builder {
+        private final DeploymentEffect effect;
+
+        public Builder(DeploymentEffect effect) {
+            this.effect = effect;
+        }
+
+        public OnResourceBuilder onResource(ResourceCoordinates resource) {
+            return new OnResourceBuilder(effect, resource);
+        }
+
+        public DeploymentEffect build() {
+            return effect;
+        }
+    }
+
+    public static final class OnResourceBuilder {
+        private final DeploymentEffect effect;
+        private final ResourceCoordinates coords;
+
+        public OnResourceBuilder(DeploymentEffect effect, ResourceCoordinates coords) {
+            this.effect = effect;
+            this.coords = coords;
+        }
+
+        public EffectsBuilder files(URI... files) {
+            return new EffectsBuilder(effect, coords, new HashSet<URI>(Arrays.asList(files)));
+        }
+    }
+
+    public static final class EffectsBuilder {
+        private final DeploymentEffect effect;
+        private final ResourceCoordinates coords;
+        private final Set<URI> files;
+
+        public EffectsBuilder(DeploymentEffect effect, ResourceCoordinates coords, Set<URI> files) {
+            this.effect = effect;
+            this.coords = coords;
+            this.files = files;
+        }
+
+        public Builder haveEffects(ResourceEffect... effects) {
+            Map<Set<URI>, Set<ResourceEffect>> re = effect.getEffects().get(coords);
+            if (re == null) {
+                re = new HashMap<Set<URI>, Set<ResourceEffect>>(1);
+                effect.getEffects().put(coords, re);
+            }
+
+            Set<ResourceEffect> r = re.get(files);
+            if (r == null) {
+                r = new HashSet<ResourceEffect>(effects.length);
+                Collections.addAll(r, effects);
+                re.put(files, r);
+            }
+
+            return new Builder(effect);
+        }
+    }
+
+    private Map<ResourceCoordinates, Map<Set<URI>, Set<ResourceEffect>>> effects;
+
+    /**
+     * Consider using the builder ({@link #builder()} to initialize the instance instead of using a bare constructor.
+     */
+    public DeploymentEffect() {
+        effects = new HashMap<ResourceCoordinates, Map<Set<URI>, Set<ResourceEffect>>>();
+    }
+
+    public static Builder builder() {
+        return new Builder(new DeploymentEffect());
+    }
+
+    /**
+     * Keyed by paths to individual resources (down the hierarchy from the resource doing the deployment discovery or
+     * analysis), the values describe the effect of groups of files on the keyed resources.
      * <p/>
-     * Note that there is no requirement on the file sets to be unique - they can overlap (i.e. a single file
-     * may be present in multiple file sets).
+     * Multiple sets of files can have different effects on a single resource.
      * <p/>
-     * Also note that the URIs identifying the files are intended to be relative to some "root" that is identified
-     * by the deployment's key.
+     * The effect on the resource is described by an instance of:
+     * <ul>
+     * <li>{@link org.rhq.core.pluginapi.provision.DeploymentEffect.ResourceAdded}</li>
+     * <li>{@link org.rhq.core.pluginapi.provision.DeploymentEffect.ResourceRemoved}</li>
+     * <li>{@link org.rhq.core.pluginapi.provision.DeploymentEffect.ContentModified}</li>
+     * <li>{@link org.rhq.core.pluginapi.provision.DeploymentEffect.PluginConfigurationModified}</li>
+     * <li>{@link org.rhq.core.pluginapi.provision.DeploymentEffect.ResourceConfigurationModified}</li>
+     * </ul>
+     * The set of effects a set of files can have can contain at most 1 instance of each of the types above.
+     * Additionally, at most one of {@code ResourceAdded} or {@code ResourceRemoved} can be present in the set at the
+     * same time.
      * <p/>
-     * finally, the returned map is mutable and intended to be "filled" by interested parties.
+     * Note that the returned instance is mutable.
+     * <p/>
+     * Consider using the {@link #builder() builder} when initializing the effects.
      *
      * @return the map of effects a deployment has on the inventory
      */
-    public Map<Set<URI>, Set<DeploymentResourceEffect>> getEffects() {
+    public Map<ResourceCoordinates, Map<Set<URI>, Set<ResourceEffect>>> getEffects() {
         return effects;
     }
 
