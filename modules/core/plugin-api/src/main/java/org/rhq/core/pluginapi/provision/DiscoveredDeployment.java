@@ -23,7 +23,7 @@
 
 package org.rhq.core.pluginapi.provision;
 
-import java.io.File;
+import java.net.URI;
 import java.util.Set;
 
 import org.rhq.core.domain.configuration.Configuration;
@@ -36,14 +36,15 @@ public final class DiscoveredDeployment extends AbstractDeployment {
     private final DeploymentEffect deploymentEffect;
 
     /**
-     * @param type the type of the deployment, usually this will be {@link Type#API}.
-     * @param deploymentKey the key that identifies the deployment on the resource
+     * @param type                    the type of the deployment, usually this will be {@link Type#API}.
+     * @param deploymentKey           the key that identifies the deployment on the resource
      * @param deploymentConfiguration the configuration of the discovered deployment
-     * @param deployedFiles the set of files the deployment consists of
-     * @param deploymentEffect the resources affected by this deployment
+     * @param deployedFiles           the set of files the deployment consists of, the URIs should be relative, with the
+     *                                key identifying the "root"
+     * @param deploymentEffect        the resources affected by this deployment
      */
     public DiscoveredDeployment(Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                                Set<File> deployedFiles, DeploymentEffect deploymentEffect) {
+        Set<URI> deployedFiles, DeploymentEffect deploymentEffect) {
         super(type, deploymentKey, deploymentConfiguration, deployedFiles);
 
         this.deploymentEffect = deploymentEffect;

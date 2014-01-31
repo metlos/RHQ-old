@@ -23,7 +23,7 @@
 
 package org.rhq.core.pluginapi.provision;
 
-import java.io.File;
+import java.net.URI;
 import java.util.Set;
 
 import org.rhq.core.domain.configuration.Configuration;
@@ -45,7 +45,7 @@ public final class ProvisionedDeployment extends AbstractDeployment {
     }
 
     private ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                                  Set<File> deployedFiles, String errorMessage) {
+                                  Set<URI> deployedFiles, String errorMessage) {
         super(type, deploymentKey, deploymentConfiguration, deployedFiles);
         this.errorMessage = errorMessage;
     }
@@ -55,7 +55,7 @@ public final class ProvisionedDeployment extends AbstractDeployment {
     }
 
     public ProvisionedDeployment(Deployment.Type type, Key deploymentKey, Configuration deploymentConfiguration,
-                                 Set<File> deployedFiles) {
+                                 Set<URI> deployedFiles) {
         this(type, deploymentKey, deploymentConfiguration, deployedFiles, null);
     }
 

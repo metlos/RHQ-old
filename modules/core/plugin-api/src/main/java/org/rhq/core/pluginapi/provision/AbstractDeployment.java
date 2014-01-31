@@ -23,7 +23,7 @@
 
 package org.rhq.core.pluginapi.provision;
 
-import java.io.File;
+import java.net.URI;
 import java.util.Set;
 
 import org.rhq.core.domain.configuration.Configuration;
@@ -44,7 +44,7 @@ abstract class AbstractDeployment implements Deployment {
     private final Type type;
     private final Key deploymentKey;
     private final Configuration deploymentConfiguration;
-    private final Set<File> deployedFiles;
+    private final Set<URI> deployedFiles;
 
     /**
      * Creates a new deployment description instance.
@@ -53,9 +53,9 @@ abstract class AbstractDeployment implements Deployment {
      * @param deploymentConfiguration the configuration of the deployment
      * @param deployedFiles the set of the files that the deployment consists of
      */
-    public AbstractDeployment(Type type,
+    protected AbstractDeployment(Type type,
                               Key deploymentKey, Configuration deploymentConfiguration,
-                              Set<File> deployedFiles) {
+                              Set<URI> deployedFiles) {
 
         if (type == null) {
             throw new IllegalArgumentException("type can't be null");
@@ -77,7 +77,7 @@ abstract class AbstractDeployment implements Deployment {
     }
 
     @Override
-    public Set<File> getDeployedFiles() {
+    public Set<URI> getDeployedFiles() {
         return deployedFiles;
     }
 
@@ -103,9 +103,7 @@ abstract class AbstractDeployment implements Deployment {
 
         AbstractDeployment that = (AbstractDeployment) o;
 
-        if (!deploymentKey.equals(that.deploymentKey)) return false;
-
-        return true;
+        return deploymentKey.equals(that.deploymentKey);
     }
 
     @Override

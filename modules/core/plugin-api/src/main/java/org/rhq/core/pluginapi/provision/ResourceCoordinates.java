@@ -31,9 +31,9 @@ import org.rhq.core.domain.resource.Resource;
 
 /**
  * Represents a path to a child resource.
- *
- * <p> Use the static factory methods ({@link #builder(String, String)} and {@link #from(org.rhq.core.domain.resource.Resource)}
- * to create instances of this class.
+ * <p/>
+ * Use the static factory methods ({@link #builder(String, String)} and {@link
+ * #from(org.rhq.core.domain.resource.Resource)} to create instances of this class.
  *
  * @author Lukas Krejci
  */
@@ -70,8 +70,9 @@ public final class ResourceCoordinates implements Iterable<ResourceCoordinates> 
      * Returns a new builder of the resource coordinates initialized with the resource key and type name for the
      * leaf of the coordinates.
      *
-     * @param resourceKey the resource key of the leaf of the coordinates
+     * @param resourceKey      the resource key of the leaf of the coordinates
      * @param resourceTypeName the type name of the leaf of the coordinates
+     *
      * @return the builder to construct the full coordinates of the leaf
      */
     public static Builder builder(String resourceKey, String resourceTypeName) {
@@ -83,6 +84,7 @@ public final class ResourceCoordinates implements Iterable<ResourceCoordinates> 
      * The leaf of the return coordinates corresponds to the supplied resource.
      *
      * @param resource the resource to construct the coordinates of
+     *
      * @return the coordinates of the resource
      */
     public static ResourceCoordinates from(Resource resource) {
@@ -210,22 +212,36 @@ public final class ResourceCoordinates implements Iterable<ResourceCoordinates> 
     }
 
     private static boolean dataEquals(ResourceCoordinates a, ResourceCoordinates b) {
-        if (a.position != b.position) return false;
-        if (!a.resourceKey.equals(b.resourceKey)) return false;
-        if (!a.resourceTypeName.equals(b.resourceTypeName)) return false;
+        if (a.position != b.position) {
+            return false;
+        }
+        if (!a.resourceKey.equals(b.resourceKey)) {
+            return false;
+        }
+        if (!a.resourceTypeName.equals(b.resourceTypeName)) {
+            return false;
+        }
 
         return true;
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ResourceCoordinates)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ResourceCoordinates)) {
+            return false;
+        }
 
         ResourceCoordinates that = (ResourceCoordinates) o;
 
-        if (!dataEquals(this, that)) return false;
-        if (path.size() != that.path.size()) return false;
+        if (!dataEquals(this, that)) {
+            return false;
+        }
+        if (path.size() != that.path.size()) {
+            return false;
+        }
 
         return memberWiseEquals(that);
     }
@@ -241,7 +257,7 @@ public final class ResourceCoordinates implements Iterable<ResourceCoordinates> 
     @Override
     public String toString() {
         StringBuilder bld = new StringBuilder("ResourceCoordinates[");
-        for(int i = 0; i < path.size(); ++i) {
+        for (int i = 0; i < path.size(); ++i) {
             ResourceCoordinates rc = path.get(i);
             bld.append(i == position ? "{{" : "(");
             bld.append(rc.resourceKey).append(", ").append(rc.resourceTypeName);
