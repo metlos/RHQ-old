@@ -26,7 +26,6 @@ package org.rhq.core.pluginapi.provision;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -43,8 +42,12 @@ public final class DeploymentEffect implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static abstract class ResourceEffect implements Serializable {
+    public static abstract class ResourceEffect implements Serializable {
         private static final long serialVersionUID = 1L;
+
+        private ResourceEffect() {
+
+        }
 
         @Override
         public boolean equals(Object other) {
@@ -64,7 +67,7 @@ public final class DeploymentEffect implements Serializable {
         private static final long serialVersionUID = 1L;
         private final Configuration configuration;
 
-        protected ConfigurationModifiedEffect(Configuration configuration) {
+        private ConfigurationModifiedEffect(Configuration configuration) {
             this.configuration = configuration;
         }
 
@@ -162,16 +165,12 @@ public final class DeploymentEffect implements Serializable {
     public static final class Builder {
         private final DeploymentEffect effect;
 
-        public Builder(DeploymentEffect effect) {
+        private Builder(DeploymentEffect effect) {
             this.effect = effect;
         }
 
         public OnResourceBuilder onResource(ResourceCoordinates resource) {
             return new OnResourceBuilder(effect, resource);
-        }
-
-        public DeploymentEffect build() {
-            return effect;
         }
     }
 
@@ -179,28 +178,90 @@ public final class DeploymentEffect implements Serializable {
         private final DeploymentEffect effect;
         private final ResourceCoordinates coords;
 
-        public OnResourceBuilder(DeploymentEffect effect, ResourceCoordinates coords) {
+        private OnResourceBuilder(DeploymentEffect effect, ResourceCoordinates coords) {
             this.effect = effect;
             this.coords = coords;
         }
 
-        public EffectsBuilder files(URI... files) {
-            return new EffectsBuilder(effect, coords, new HashSet<URI>(Arrays.asList(files)));
+        public EffectsBuilderStart files(URI... files) {
+            return new EffectsBuilderStart(effect, coords, new HashSet<URI>(Arrays.asList(files)));
         }
     }
 
-    public static final class EffectsBuilder {
-        private final DeploymentEffect effect;
-        private final ResourceCoordinates coords;
-        private final Set<URI> files;
+    public static class EffectsBuilderStart {
+        protected final DeploymentEffect effect;
+        protected final ResourceCoordinates coords;
+        protected final Set<URI> files;
+        protected final Set<ResourceEffect> effects;
 
-        public EffectsBuilder(DeploymentEffect effect, ResourceCoordinates coords, Set<URI> files) {
+        private EffectsBuilderStart(DeploymentEffect effect, ResourceCoordinates coords, Set<URI> files) {
+            this(effect, coords, files, new HashSet<ResourceEffect>());
+        }
+
+        private EffectsBuilderStart(DeploymentEffect effect, ResourceCoordinates coords, Set<URI> files,
+            Set<ResourceEffect> effects) {
             this.effect = effect;
             this.coords = coords;
             this.files = files;
+            this.effects = effects;
         }
 
-        public Builder haveEffects(ResourceEffect... effects) {
+        public EffectsBuilder addResource(ResourceBacking backing) {
+            effects.add(new ResourceAdded(backing));
+            return new EffectsBuilder(effect, coords, files, effects);
+        }
+
+        public EffectsBuilder removeResource() {
+            effects.add(new ResourceRemoved());
+            return nextStep();
+        }
+
+        public EffectsBuilder modifyContent(ResourceBacking backing) {
+            effects.add(new ContentModified(backing));
+            return nextStep();
+        }
+
+        public EffectsBuilder modifyPluginConfiguration(Configuration pluginConfiguration) {
+            effects.add(new PluginConfigurationModified(pluginConfiguration));
+            return nextStep();
+        }
+
+        public EffectsBuilder modifyResourceConfiguration(Configuration configuration) {
+            effects.add(new ResourceConfigurationModified(configuration));
+            return nextStep();
+        }
+
+        protected EffectsBuilder nextStep() {
+            return new EffectsBuilder(effect, coords, files, effects);
+        }
+    }
+
+    public static final class EffectsBuilder extends EffectsBuilderStart {
+        private EffectsBuilder(DeploymentEffect effect, ResourceCoordinates coords, Set<URI> files, Set<ResourceEffect> effects) {
+            super(effect, coords, files, effects);
+        }
+
+        @Override
+        protected EffectsBuilder nextStep() {
+            return this;
+        }
+
+        public OnResourceBuilder onResource(ResourceCoordinates coords) {
+            apply();
+            return new OnResourceBuilder(effect, coords);
+        }
+
+        public EffectsBuilderStart files(URI... files) {
+            apply();
+            return new EffectsBuilderStart(effect, coords, new HashSet<URI>(Arrays.asList(files)));
+        }
+
+        public DeploymentEffect build() {
+            apply();
+            return effect;
+        }
+
+        private void apply() {
             Map<Set<URI>, Set<ResourceEffect>> re = effect.getEffects().get(coords);
             if (re == null) {
                 re = new HashMap<Set<URI>, Set<ResourceEffect>>(1);
@@ -209,12 +270,11 @@ public final class DeploymentEffect implements Serializable {
 
             Set<ResourceEffect> r = re.get(files);
             if (r == null) {
-                r = new HashSet<ResourceEffect>(effects.length);
-                Collections.addAll(r, effects);
+                r = effects;
                 re.put(files, r);
+            } else {
+                r.addAll(effects);
             }
-
-            return new Builder(effect);
         }
     }
 
