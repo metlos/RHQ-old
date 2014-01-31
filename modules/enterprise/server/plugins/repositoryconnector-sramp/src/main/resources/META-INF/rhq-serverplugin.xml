@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<repositoryconnector-plugin name="repositoryconnector-sramp"
+                    displayName="RepositoryConnector:S-RAMP" xmlns="urn:xmlns:rhq-serverplugin.repositoryconnector"
+                    xmlns:c="urn:xmlns:rhq-configuration" xmlns:serverplugin="urn:xmlns:rhq-serverplugin"
+                    package="org.rhq.enterprise.server.plugins.repositoryconnector.sramp"
+                    description="A package type for CLI scripts.">
+
+    <serverplugin:help>
+        This plugin makes it possible to connect to an S-RAMP repository.
+    </serverplugin:help>
+
+    <serverplugin:plugin-configuration>
+        <c:simple-property name="username" displayName="User Name"/>
+        <c:simple-property name="password" type="password" />
+    </serverplugin:plugin-configuration>
+
+    <artifact-definition>
+        <c:simple-property name="artifactType" displayName="S-RAMP Type" required="true">
+            <c:description>
+                The type of the S-RAMP artifact. This must be supplied manually because S-RAMP doesn't provide a way
+                of autodetecting these types. You can select from the list of the predefined standard S-RAMP artifact
+                types or you can supply the name of a custom type. Please refer to S-RAMP documentation to understand
+                what the types are and how they are used within S-RAMP.
+            </c:description>
+            <c:property-options allowCustomValue="true">
+                <c:option value="Document" name="Document" />
+                <c:option value="XmlDocument" name="XML Document" />
+                <c:option value="XsdDocument" name="XSD Document" />
+                <c:option value="WsdlDocument" name="WSDL Document" />
+                <c:option value="PolicyDocument" name="Policy Document" />
+            </c:property-options>
+        </c:simple-property>
+    </artifact-definition>
+
+</repositoryconnector-plugin>

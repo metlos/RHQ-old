@@ -23,7 +23,9 @@
 package org.rhq.core.domain.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -32,6 +34,7 @@ import java.util.Set;
  */
 public class StringUtils {
     private static final Set<String> LOWERCASE_WORDS = new HashSet<String>();
+
     static {
         // conjunctions
         LOWERCASE_WORDS.add("And");
@@ -42,6 +45,17 @@ public class StringUtils {
         LOWERCASE_WORDS.add("An");
         LOWERCASE_WORDS.add("The");
     }
+
+    public interface ObjectFromStringFactory<T> {
+        T fromString(String s);
+    }
+
+    private static final ObjectFromStringFactory<String> STRING_FROM_STRING_FACTORY = new ObjectFromStringFactory<String>() {
+        @Override
+        public String fromString(String s) {
+            return s;
+        }
+    };
 
     /*
      * Take something that is camel-cased, add spaces between the words, and capitalize each word.
@@ -118,35 +132,58 @@ public class StringUtils {
 
     public static List<String> getStringAsList(String input, String regexSplitter, boolean ignoreEmptyTokens) {
         List<String> results = new ArrayList<String>();
+        fill(results, input, regexSplitter, ignoreEmptyTokens);
 
+        return results;
+    }
+
+    public static void fill(Collection<String> collection, String input, String splitRegex, boolean ignoreEmptyTokens) {
+        fill(collection, input, splitRegex, ignoreEmptyTokens, STRING_FROM_STRING_FACTORY);
+    }
+
+    public static <T> void fill(Collection<T> collection, String input, String splitRegex, boolean ignoreEmptyTokens, ObjectFromStringFactory<T> factory) {
         if (input == null) {
             // gracefully return a 0-element list if the input is null
-            return results;
+            return;
         }
 
-        for (String lineItem : input.split(regexSplitter)) {
+        for (String lineItem : input.split(splitRegex)) {
             // allow user to visual separate data, but ignore blank lines
             if (ignoreEmptyTokens && lineItem.trim().equals("")) {
                 continue;
             }
 
-            results.add(lineItem);
-        }
+            T object = factory.fromString(lineItem);
 
-        return results;
+            collection.add(object);
+        }
     }
 
-    public static String getListAsString(List<String> stringList, String seperatorFragment) {
-        StringBuilder builder = new StringBuilder();
-        for (String element : stringList) {
-            if (builder.length() != 0) {
-                builder.append(seperatorFragment);
-            }
+    public static String getListAsString(List<?> stringList, String seperatorFragment) {
+        return join(stringList, seperatorFragment, true);
+    }
 
-            builder.append(element);
+    public static String join(Iterable<?> strings, String separator, boolean includeNullElements) {
+        Iterator<?> it = strings.iterator();
+        if (!it.hasNext()) {
+            return "";
         }
 
-        return builder.toString();
+        StringBuilder bld = new StringBuilder();
+        Object next = it.next();
+
+        if (next != null || includeNullElements) {
+            bld.append(next);
+        }
+
+        while(it.hasNext()) {
+            next = it.next();
+            if (next != null || includeNullElements) {
+                bld.append(separator).append(next);
+            }
+        }
+
+        return bld.toString();
     }
 
     /**

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:serverplugin="urn:xmlns:rhq-serverplugin" xmlns:config="urn:xmlns:rhq-configuration"
+           xmlns:repositoryconnector="urn:xmlns:rhq-serverplugin.repositoryconnector"
+           targetNamespace="urn:xmlns:rhq-serverplugin.repositoryconnector"
+           elementFormDefault="qualified" jaxb:version="2.0"
+           xmlns:jaxb="http://java.sun.com/xml/ns/jaxb" blockDefault="">
+
+    <xs:import namespace="urn:xmlns:rhq-serverplugin"
+               schemaLocation="rhq-serverplugin.xsd"/>
+    <xs:import namespace="urn:xmlns:rhq-configuration"
+               schemaLocation="rhq-configuration.xsd" />
+
+    <xs:annotation>
+        <xs:documentation>
+            Schema for repository connector plugins.
+        </xs:documentation>
+        <xs:appinfo>
+            <jaxb:schemaBindings>
+                <jaxb:package
+                        name="org.rhq.enterprise.server.xmlschema.generated.serverplugin.repositoryconnector"/>
+            </jaxb:schemaBindings>
+        </xs:appinfo>
+    </xs:annotation>
+
+    <xs:element name="repositoryconnector-plugin"
+                type="repositoryconnector:RepositoryConnectorPluginDescriptorType"
+                substitutionGroup="serverplugin:server-plugin">
+        <xs:annotation>
+            <xs:documentation>
+                Defines a server-side repository connector plugin. Repository connectors are used to connect to
+                remote content repositories and provide an interoperability bridge between the repositories and RHQ.
+            </xs:documentation>
+            <xs:appinfo>
+                <jaxb:class name="RepositoryConnectorPluginElement"/>
+            </xs:appinfo>
+        </xs:annotation>
+    </xs:element>
+
+    <xs:complexType name="RepositoryConnectorPluginDescriptorType">
+        <xs:complexContent>
+            <xs:extension base="serverplugin:ServerPluginDescriptorType">
+                <xs:sequence>
+                    <xs:element name="artifact-definition" minOccurs="0" maxOccurs="1" type="config:configuration">
+                        <xs:annotation>
+                            <xs:documentation>
+                                Specifies the additional definition of an artifact. This is distinct from
+                                the metadata, because this definition enhances the basic set of attributes describing
+                                what an artifact "is". Metadata merely provide additional information but do not contribute
+                                to the "type" of the artifact.
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+</xs:schema>
